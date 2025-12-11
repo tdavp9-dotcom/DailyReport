@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Import báo cáo ngày → Supabase</title>
+  <style>
+    :root{
+      --bg:#070B18;
+      --card:#0F152F;
+      --border:rgba(255,255,255,.14);
+      --text:#E7ECFF;
+      --muted:rgba(231,236,255,.76);
+      --accent:#60A5FA;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0; padding:16px;
+      font-family:var(--sans); color:var(--text);
+      background: radial-gradient(900px 420px at 20% -10%, rgba(96,165,250,.25), transparent 60%),
+                  linear-gradient(180deg,#050818,#05030e);
+    }
+    .wrap{ max-width: 920px; margin: 0 auto; }
+    h1{ margin:0 0 8px; font-size:20px; }
+    .card{
+      background:var(--card);
+      border-radius:16px;
+      border:1px solid var(--border);
+      padding:14px;
+      margin-top:12px;
+    }
+    .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    input[type="file"], button{
+      padding:10px 12px;
+      font-size:14px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      font-family:var(--sans);
+    }
+    button{ cursor:pointer; font-weight:600; }
+    button:hover{ background:rgba(96,165,250,.24); border-color:rgba(96,165,250,.65); }
+    button[disabled]{ opacity:.6; cursor:not-allowed; }
+    .muted{ font-size:13px; color:var(--muted); line-height:1.5; margin-top:6px; }
+    code{ font-family:var(--mono); background:rgba(255,255,255,.08); padding:2px 6px; border-radius:7px; }
+    pre{
+      margin:0;
+      padding:10px 12px;
+      border-radius:12px;
+      background:#050816;
+      border:1px solid rgba(255,255,255,.12);
+      color:#E7ECFF;
+      font-family:var(--mono);
+      font-size:12px;
+      white-space:pre-wrap;
+      max-height:360px;
+      overflow:auto;
+    }
+    .pill{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.16);
+      background:rgba(255,255,255,.05);
+      font-size:12px; color:var(--muted);
+      margin-right:6px;
+    }
+    .dot{ width:9px;height:9px;border-radius:999px;background:rgba(255,255,255,.35); }
+    .dot.ok{ background:#4ade80; }
+    .dot.err{ background:#fb7185; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Upload Excel → Supabase</h1>
+
+    <div class="card">
+      <div class="row">
+        <span class="pill"><span id="dot" class="dot"></span><span id="status">Chưa test Supabase</span></span>
+        <span class="pill">Bảng: <code>report_days</code> + <code>report_units</code></span>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <input id="file" type="file" accept=".xlsx,.xls" />
+        <button id="btnImport" type="button">Import</button>
+        <button id="btnClear" type="button">Clear log</button>
+      </div>
+      <p class="muted">
+        Mapping theo file: <b>Tinh hinh san xuat</b><br/>
+        Ngày báo cáo: <code>E2</code> (dạng ngày hoặc 10/12/25)<br/>
+        Dòng số liệu chính: <code>6</code> • Lũy kế: dòng <code>8</code>, <code>10</code><br/>
+        Thủy văn + Q + tự dùng: cột <code>R</code>→<code>W</code> • Số lần khởi động: vùng <code>L15:Q15</code><br/>
+        Sản lượng đăng ký / thực phát: vùng <code>Z19:AD21</code>.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 8px;">Log</h3>
+      <pre id="log">Sẵn sàng.</pre>
+    </div>
+  </div>
+
+  <!-- SheetJS -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <script>
+    // ===== 1. Supabase config =====
+    const SUPABASE_URL = "https://upicvbecjmzkfgoawupo.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwaWN2YmVjam16a2Znb2F3dXBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNTAzMTEsImV4cCI6MjA4MDkyNjMxMX0.3pVGVnP_OjkwLCvoVQzK7xaJRUaiFzJfopzUvPsWwXE";
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const $ = (id) => document.getElementById(id);
+    const log = (...args) => { $("log").textContent += "\n" + args.join(" "); $("log").scrollTop = $("log").scrollHeight; };
+    const setStatus = (kind, text) => {
+      const dot = $("dot");
+      dot.className = "dot " + (kind || "");
+      $("status").textContent = text;
+    };
+
+    // ===== 2. Helpers =====
+    const toNumber = (v) => {
+      if (v === null || v === undefined || v === "") return null;
+      const s = String(v).trim().replace(/\s/g,"");
+      const s1 = s.replace(/,(?=\d{3}(\D|$))/g,"").replace(/\.(?=\d{3}(\D|$))/g,"");
+      const s2 = s1.replace(",",".");
+      const n = Number(s2);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    function parseVNDateString(str){
+      if (!str) return null;
+      const s = String(str).trim();
+      const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+      if (!m) return null;
+      const dd = m[1].padStart(2,"0");
+      const mm = m[2].padStart(2,"0");
+      let yyyy = m[3];
+      if (yyyy.length === 2) {
+        const yy = Number(yyyy);
+        yyyy = String(yy >= 70 ? 1900+yy : 2000+yy);
+      }
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function toISODateFromCell(cell){
+      if (!cell) return null;
+
+      // 1) Nếu có chuỗi hiển thị => thử parse dd/mm/yyyy
+      const displayed = (cell.w && String(cell.w).trim()) || String(XLSX.utils.format_cell(cell)).trim();
+      const vn = parseVNDateString(displayed);
+      if (vn) return vn;
+
+      // 2) Nếu là số serial Excel
+      if (typeof cell.v === "number") {
+        const d = XLSX.SSF.parse_date_code(cell.v);
+        if (d && d.y && d.m && d.d) {
+          return `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`;
+        }
+      }
+
+      // 3) Nếu là Date
+      if (cell.v instanceof Date) {
+        const yyyy = cell.v.getFullYear();
+        const mm = String(cell.v.getMonth()+1).padStart(2,"0");
+        const dd = String(cell.v.getDate()).padStart(2,"0");
+        return `${yyyy}-${mm}-${dd}`;
+      }
+      return null;
+    }
+
+    function pickSheet(wb){
+      return wb.SheetNames.find(n=>n.toLowerCase().includes("tinh")) || wb.SheetNames[0];
+    }
+
+    // ===== 3. Extract from workbook =====
+    function extractFromWorkbook(wb){
+      const sheetName = pickSheet(wb);
+      const ws = wb.Sheets[sheetName];
+
+      const get = (addr) => ws[addr]?.v;
+
+      // Ngày báo cáo: E2 (ưu tiên) rồi E3,E4 nếu cần
+      let reportDate =
+        toISODateFromCell(ws["E2"]) ||
+        toISODateFromCell(ws["E3"]) ||
+        toISODateFromCell(ws["E4"]);
+      if (!reportDate) throw new Error(`Không đọc được ngày báo cáo ở E2/E3/E4 (sheet: ${sheetName}).`);
+
+      log("Ngày báo cáo (ISO):", reportDate);
+
+      // ----- THÔNG SỐ CHUNG (report_days) -----
+      const water_level  = toNumber(get("R6")); // mực nước hồ
+      const mnh_qt       = toNumber(get("S7")); // 380
+      const nsmo_tuan    = toNumber(get("U7")); // 375.81
+
+      const q_ve_tb      = toNumber(get("S6"));
+      const q_chay_tb    = toNumber(get("T6"));
+      const q_xa         = toNumber(get("U6"));
+
+      const td_tong      = toNumber(get("V6")); // Tổng điện năng tự dùng
+      const td_tyle      = toNumber(get("W6")); // Tỉ lệ %
+
+      const td_h1        = toNumber(get("V8")); // Tự dùng sản xuất điện H1
+      const td_h2        = toNumber(get("W8")); // Tự dùng H2
+
+      const td_lk_nam_h1 = toNumber(get("V10"));
+      const td_lk_nam_h2 = toNumber(get("W10"));
+
+      const rain_day     = toNumber(get("R16"));
+      const rain_year    = toNumber(get("T16"));
+      const phuong_thuc_ac = (ws["W16"]?.v ?? "").toString().trim() || null;
+
+      // PCT đã cấp / đã khóa: gom text ở cột W từ dòng 13 đến 20 có chứa 'PCT'
+      const pctList = [];
+      for(let r=13; r<=20; r++){
+        const v = ws["W"+r]?.v;
+        if (v && String(v).toUpperCase().includes("PCT")) pctList.push(String(v));
+      }
+      const pct_da_cap = pctList.length ? pctList.join("\n") : null;
+      const pct_da_khoa = null; // hiện tại file không tách "đã khóa" riêng
+
+      // Note: gom text vùng E14..E16 (phần ghi chú)
+      const noteParts = [];
+      for(let r=14; r<=16; r++){
+        const v = ws["E"+r]?.v;
+        if (v && String(v).trim()) noteParts.push(String(v).trim());
+      }
+      const note = noteParts.join(" | ") || null;
+
+      const dayRow = {
+        report_date: reportDate,
+        water_level,
+        mnh_qt,
+        nsmo_tuan,
+        q_ve_tb,
+        q_chay_tb,
+        q_xa,
+        td_tong,
+        td_tyle,
+        td_h1,
+        td_h2,
+        td_lk_nam_h1,
+        td_lk_nam_h2,
+        rain_day,
+        rain_year,
+        pct_da_cap,
+        pct_da_khoa,
+        phuong_thuc_ac,
+        note
+      };
+
+      // ----- THÔNG SỐ THEO TỔ MÁY (report_units) -----
+      function makeUnit(unit){
+        const isH1 = unit === "H1";
+
+        // ngày hiện tại: dòng 6
+        const p_max      = toNumber(get(isH1 ? "F6" : "G6"));
+        const p_min      = toNumber(get(isH1 ? "H6" : "I6"));
+        const t_run      = toNumber(get(isH1 ? "J6" : "K6"));
+        const energy_kwh = toNumber(get(isH1 ? "L6" : "M6"));
+        const avc_giao   = toNumber(get(isH1 ? "N6" : "O6"));
+        const avc_nhan   = toNumber(get(isH1 ? "P6" : "Q6"));
+
+        // lũy kế tháng: dòng 8
+        const lk_thang_t_run = toNumber(get(isH1 ? "J8" : "K8"));
+        const lk_thang_kwh   = toNumber(get(isH1 ? "L8" : "M8"));
+
+        // lũy kế năm: dòng 10
+        const lk_nam_t_run    = toNumber(get(isH1 ? "J10" : "K10"));
+        const lk_nam_kwh      = toNumber(get(isH1 ? "L10" : "M10"));
+        const lk_nam_avc_giao = toNumber(get(isH1 ? "N10" : "O10"));
+        const lk_nam_avc_nhan = toNumber(get(isH1 ? "P10" : "Q10"));
+
+        // Số lần khởi động: dòng 15
+        const start_today = toNumber(get(isH1 ? "L15" : "M15"));
+        const start_month = toNumber(get(isH1 ? "N15" : "O15"));
+        const start_year  = toNumber(get(isH1 ? "P15" : "Q15"));
+
+        // Bảng sản lượng điện ngày (ở cuối): tìm dòng có Z=?H1/H2
+        const rowSL = isH1 ? 19 : 20;
+        const label = (ws["Z"+rowSL]?.v ?? "").toString().trim();
+        const sl_ke_hoach  = toNumber(get("AA"+rowSL));
+        const sl_tu_khien  = toNumber(get("AB"+rowSL));
+        const sl_thuc_phat = toNumber(get("AC"+rowSL));
+        const sl_qc_thang12= toNumber(get("AD"+rowSL));
+
+        return {
+          report_date: reportDate,
+          unit_code: unit,
+          p_max,
+          p_min,
+          t_run,
+          energy_kwh,
+          avc_giao,
+          avc_nhan,
+          lk_thang_t_run,
+          lk_thang_kwh,
+          lk_nam_t_run,
+          lk_nam_kwh,
+          lk_nam_avc_giao,
+          lk_nam_avc_nhan,
+          start_today,
+          start_month,
+          start_year,
+          sl_ke_hoach,
+          sl_tu_khien,
+          sl_thuc_phat,
+          sl_qc_thang12
+        };
+      }
+
+      const unitRows = [ makeUnit("H1"), makeUnit("H2") ];
+
+      return { sheetName, reportDate, dayRow, unitRows };
+    }
+
+    async function upsertDay(dayRow){
+      const { data, error } = await supabase
+        .from("report_days")
+        .upsert(dayRow, { onConflict: "report_date" })
+        .select();
+      if (error) throw error;
+      return data;
+    }
+
+    async function upsertUnits(unitRows){
+      const { data, error } = await supabase
+        .from("report_units")
+        .upsert(unitRows, { onConflict: "report_date,unit_code" })
+        .select();
+      if (error) throw error;
+      return data;
+    }
+
+    async function testConnection(){
+      const { error } = await supabase.from("report_days").select("report_date").limit(1);
+      if (error) throw error;
+    }
+
+    // ===== 4. Init =====
+    window.addEventListener("load", async ()=>{
+      log("Page loaded.");
+      try{
+        setStatus("", "Đang test Supabase…");
+        await testConnection();
+        setStatus("ok", "Supabase OK");
+        log("✅ Supabase kết nối OK.");
+      }catch(e){
+        setStatus("err", "Supabase lỗi");
+        log("❌ Supabase lỗi:", e.message || String(e));
+      }
+    });
+
+    $("btnClear").addEventListener("click", ()=>{
+      $("log").textContent = "Sẵn sàng.";
+    });
+
+    $("btnImport").addEventListener("click", async ()=>{
+      const btn = $("btnImport");
+      btn.disabled = true;
+      log("\n👉 Bắt đầu Import");
+
+      try{
+        const file = $("file").files[0];
+        if (!file) throw new Error("Chưa chọn file Excel.");
+        log("Đang đọc file:", file.name);
+
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type:"array" });
+
+        const { sheetName, reportDate, dayRow, unitRows } = extractFromWorkbook(wb);
+
+        log("Sheet dùng:", sheetName);
+        log("Ngày báo cáo:", reportDate);
+        log("Header (report_days):", JSON.stringify(dayRow, null, 2));
+        log("Units (report_units):", JSON.stringify(unitRows, null, 2));
+
+        log("Upsert report_days...");
+        await upsertDay(dayRow);
+        log("Upsert report_units...");
+        await upsertUnits(unitRows);
+
+        log("✅ Hoàn tất import cho ngày", reportDate);
+      }catch(e){
+        log("❌ Lỗi:", e.message || String(e));
+      }finally{
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
