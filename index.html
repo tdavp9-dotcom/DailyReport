@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-  <!-- Fonts -->
+  <!-- Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -59,6 +59,7 @@
         radial-gradient(900px 520px at 45% 120%, rgba(52,211,153,.18), transparent 60%),
         linear-gradient(180deg,var(--bg0),var(--bg1));
     }
+
     .app{ max-width: 560px; margin:0 auto; min-height:100%; padding:12px 12px 28px; }
 
     .topbar{
@@ -250,13 +251,7 @@
     }
     .toast.show{ display:block; }
 
-    /* Q về / Q chạy / Q xả nhiều màu */
-    .qValueWrap{
-      display:flex;
-      flex-wrap:wrap;
-      gap:6px;
-      align-items:center;
-    }
+    .qValueWrap{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
     .qItem{
       display:inline-flex;
       align-items:center;
@@ -267,10 +262,7 @@
       background:rgba(255,255,255,.03);
       border:1px solid rgba(255,255,255,.12);
     }
-    .qDot{
-      width:7px; height:7px;
-      border-radius:999px;
-    }
+    .qDot{ width:7px; height:7px; border-radius:999px; }
     .qVe  .qDot{ background:rgba(var(--c-qve),.95); }
     .qChay .qDot{ background:rgba(var(--c-qch),.95); }
     .qXa  .qDot{ background:rgba(var(--c-qxa),.95); }
@@ -279,6 +271,7 @@
     .qXa  .qLabel{ color:rgba(var(--c-qxa),.9); }
   </style>
 </head>
+
 <body>
   <div class="app">
     <div class="topbar">
@@ -437,9 +430,13 @@
 
   <div id="toast" class="toast"></div>
 
+  <!-- Supabase & ChartJS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
+  <!-- MAIN SCRIPT (chính là đoạn mình đã sửa để debug + load dữ liệu) -->
+  <!-- DỘI LẠI: chính là đoạn script dài mà mình gửi ở tin nhắn trước -->
+  <!-- Bạn copy NGUYÊN đoạn script dài đó, dán ở đây (giữa cặp <script> ... </script>) -->
   <script>
   // ========== DEBUG TOÀN CỤC ==========
   window.addEventListener("error", (e) => {
@@ -996,17 +993,15 @@
   });
 </script>
 
-
-  <!-- Service worker cho PWA -->
+  <!-- Service worker đăng ký PWA -->
   <script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("service-worker.js")
-        .then(() => console.log("SW OK"))
-        .catch(err => console.log("SW lỗi:", err));
-    });
-  }
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("service-worker.js")
+          .then(() => console.log("SW OK"))
+          .catch(err => console.log("SW lỗi:", err));
+      });
+    }
   </script>
 </body>
 </html>
-
