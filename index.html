@@ -5,12 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Dashboard báo cáo ngày</title>
 
-  <!-- PWA -->
-  <meta name="theme-color" content="#050816" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-
-  <!-- Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -434,27 +428,29 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <!-- MAIN SCRIPT (chính là đoạn mình đã sửa để debug + load dữ liệu) -->
-  <!-- DỘI LẠI: chính là đoạn script dài mà mình gửi ở tin nhắn trước -->
-  <!-- Bạn copy NGUYÊN đoạn script dài đó, dán ở đây (giữa cặp <script> ... </script>) -->
-    <!-- Supabase & ChartJS CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
+  <!-- MAIN SCRIPT -->
   <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    console.log("DOMContentLoaded fired");
+    console.log("dashboard init...");
 
-    // ========== DOM SHORTCUTS ==========
-    const $ = id => document.getElementById(id);
+    // ---------- SUPABASE CONFIG ----------
+    const SUPABASE_URL = "https://upicvbecjmzkfgoawupo.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwaWN2YmVjam16a2Znb2F3dXBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNTAzMTEsImV4cCI6MjA4MDkyNjMxMX0.3pVGVnP_OjkwLCvoVQzK7xaJRUaiFzJfopzUvPsWwXE";
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ---------- HELPERS ----------
+    const $ = (id) => document.getElementById(id);
     const fmt  = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
     const fmt0 = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 });
 
+    const cssRGB = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const rgba   = (rgb,a) => `rgba(${rgb}, ${a})`;
+
     function setConn(kind, text){
       const dot = $("dot");
-      const ct  = $("connText");
       if (dot) dot.className = "dot" + (kind ? " " + kind : "");
-      if (ct)  ct.textContent = text;
+      const ct = $("connText");
+      if (ct) ct.textContent = text;
     }
     function toast(msg){
       $("toast").textContent = msg;
@@ -463,26 +459,10 @@
       toast._t = setTimeout(()=>$("toast").classList.remove("show"), 2200);
     }
 
-    // Thông báo là JS đã chạy
-    setConn("", "JS OK – đang kiểm tra Supabase…");
-
-    // ========== SUPABASE CLIENT ==========
-    const SUPABASE_URL = "https://upicvbecjmzkfgoawupo.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwaWN2YmVjam16a2Znb2F3dXBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNTAzMTEsImV4cCI6MjA4MDkyNjMxMX0.3pVGVnP_OjkwLCvoVQzK7xaJRUaiFzJfopzUvPsWwXE";
-
-    if (!window.supabase || !window.supabase.createClient) {
-      console.error("Supabase JS CDN chưa load");
-      setConn("err", "Lỗi: Supabase JS chưa load");
-      return;
-    }
-    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log("Supabase client created", sb);
-
-    // ========== DATE HELPERS ==========
     function toISO(d){
       const yyyy = d.getFullYear();
-      const mm = String(d.getMonth()+1).padStart(2,"0");
-      const dd = String(d.getDate()).padStart(2,"0");
+      const mm   = String(d.getMonth()+1).padStart(2,"0");
+      const dd   = String(d.getDate()).padStart(2,"0");
       return `${yyyy}-${mm}-${dd}`;
     }
     function addDaysISO(iso, delta){
@@ -497,10 +477,6 @@
       return toISO(d);
     }
 
-    // ========== TAB META + COLOR HELPERS ==========
-    const cssRGB = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-    const rgba   = (rgb,a) => `rgba(${rgb}, ${a})`;
-
     const tabMeta = {
       energy:  { name:"Sản lượng",      hint:"So sánh Sản lượng (kWh) H1 vs H2 trong ngày.",               color:"--c-prod" },
       runtime: { name:"T chạy máy",     hint:"So sánh T chạy máy (h) H1 vs H2 trong ngày.",                color:"--c-run" },
@@ -510,14 +486,26 @@
       Q_7D:    { name:"Q (D-7→D-1)",    hint:"Biểu đồ Q về & Q chạy máy (m³/s) D-7 → D-1.",                color:"--c-qch" }
     };
 
-    // ========== DATA ACCESS ==========
+    function metricBox(label, value){
+      const n = Number(value);
+      const v = (value===null || value===undefined || value==="") ? "—" :
+                (Number.isFinite(n) ? fmt.format(n) : String(value));
+      return `
+        <div class="metric">
+          <div class="mLabel">${label}</div>
+          <div class="mVal">${v}</div>
+        </div>
+      `;
+    }
+
+    // ---------- DATA ACCESS ----------
     async function testConnection(){
-      const { error } = await sb.from("report_days").select("report_date").limit(1);
+      const { error } = await supabase.from("report_days").select("report_date").limit(1);
       if (error) throw error;
     }
 
     async function fetchDay(dayISO){
-      const { data: dayArr, error: e1 } = await sb
+      const { data: dayArr, error: e1 } = await supabase
         .from("report_days")
         .select("*")
         .eq("report_date", dayISO)
@@ -525,7 +513,7 @@
       if (e1) throw e1;
       const day = dayArr?.[0] || null;
 
-      const { data: units, error: e2 } = await sb
+      const { data: units, error: e2 } = await supabase
         .from("report_units")
         .select("*")
         .eq("report_date", dayISO)
@@ -538,7 +526,7 @@
     async function fetchRange(dayISO){
       const from = addDaysISO(dayISO, -7);
       const to   = dayISO;
-      const { data, error } = await sb
+      const { data, error } = await supabase
         .from("report_days")
         .select("report_date,q_ve_tb,q_chay_tb,water_level")
         .gte("report_date", from)
@@ -552,19 +540,7 @@
       return units.find(u=>u.unit_code === code) || null;
     }
 
-    // ========== RENDER COMMON ==========
-    function metricBox(label, value){
-      const n = Number(value);
-      const v = (value===null || value===undefined || value==="") ? "—" :
-                (Number.isFinite(n) ? fmt.format(n) : String(value));
-      return `
-        <div class="metric">
-          <div class="mLabel">${label}</div>
-          <div class="mVal">${v}</div>
-        </div>
-      `;
-    }
-
+    // ---------- COMMON RENDER ----------
     function renderCommon(dayISO, day, h1, h2){
       $("basicTitle").textContent = dayISO ? `Ngày ${dayISO}` : "—";
 
@@ -590,11 +566,11 @@
       const ySum = (Number.isFinite(y1)?y1:0) + (Number.isFinite(y2)?y2:0);
 
       $("eMonthTotal").textContent = mSum>0 ? fmt0.format(mSum) : "—";
-      $("eMonthSub").textContent =
+      $("eMonthSub").textContent   =
         `H1: ${Number.isFinite(m1)?fmt0.format(m1):"—"} • H2: ${Number.isFinite(m2)?fmt0.format(m2):"—"}`;
 
       $("eYearTotal").textContent  = ySum>0 ? fmt0.format(ySum) : "—";
-      $("eYearSub").textContent =
+      $("eYearSub").textContent    =
         `H1: ${Number.isFinite(y1)?fmt0.format(y1):"—"} • H2: ${Number.isFinite(y2)?fmt0.format(y2):"—"}`;
 
       const wl   = day?.water_level;
@@ -603,7 +579,6 @@
       $("basicMNH").textContent =
         (wl==null && mnh==null && nsmo==null) ? "—" :
         [wl,mnh,nsmo].map(v=>v==null?"—":fmt.format(v)).join(" / ");
-      $("basicMNHSub").textContent = "Mực nước hồ / MNH QT / NSMO";
 
       const qv = day?.q_ve_tb;
       const qc = day?.q_chay_tb;
@@ -623,7 +598,6 @@
         }
         $("basicQ").innerHTML = `<div class="qValueWrap">${parts.join("")}</div>`;
       }
-      $("basicQSub").textContent = "Q về / Q chạy / Q xả";
 
       const lines = [];
       if(day?.note)        lines.push(String(day.note));
@@ -658,7 +632,7 @@
       `;
     }
 
-    // ========== CHARTS ==========
+    // ---------- CHARTS ----------
     let currentTab    = "energy";
     let chartInstance = null;
     let cache         = { dayISO:null, day:null, units:null, rangeISO:null, rangeRows:null };
@@ -880,7 +854,7 @@
       }
     }
 
-    // ========== LOAD + UI ==========
+    // ---------- LOAD + UI ----------
     async function loadDay(){
       const dayISO = $("day").value;
       $("dateText").textContent = dayISO || "—";
@@ -934,25 +908,27 @@
       }
     }
 
-    // ========== INIT ==========
-    (async () => {
+    async function initDashboard(){
+      console.log("initDashboard start");
       $("day").value = getDMinus1ISO();
       $("dateText").textContent = $("day").value;
 
+      setConn("", "Đang kiểm tra Supabase…");
       try{
         await testConnection();
         setConn("ok","Kết nối OK");
       }catch(e){
         console.error("testConnection error", e);
-        setConn("err","Lỗi kết nối / RLS");
+        setConn("err","Lỗi kết nối / RLS: " + (e.message || ""));
         toast("Kiểm tra RLS / anon key");
-        return; // dừng nếu không kết nối được
+        return;
       }
 
       await loadDay();
-    })();
+    }
 
-    // LISTENERS
+    // gắn event
+    window.addEventListener("load", initDashboard);
     $("btnLoad").addEventListener("click", loadDay);
     $("day").addEventListener("change", loadDay);
     $("view").addEventListener("change", loadDay);
@@ -983,20 +959,6 @@
         toast("Không vẽ được biểu đồ");
       }
     });
-
-  }); // end DOMContentLoaded
-  </script>
-
-  <!-- Service worker đăng ký PWA -->
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("service-worker.js")
-          .then(() => console.log("SW OK"))
-          .catch(err => console.log("SW lỗi:", err));
-      });
-    }
   </script>
 </body>
 </html>
-
