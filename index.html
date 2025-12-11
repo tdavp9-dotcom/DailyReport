@@ -437,561 +437,555 @@
   <!-- MAIN SCRIPT (chính là đoạn mình đã sửa để debug + load dữ liệu) -->
   <!-- DỘI LẠI: chính là đoạn script dài mà mình gửi ở tin nhắn trước -->
   <!-- Bạn copy NGUYÊN đoạn script dài đó, dán ở đây (giữa cặp <script> ... </script>) -->
+    <!-- Supabase & ChartJS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
   <script>
-  // ========== DEBUG TOÀN CỤC ==========
-  window.addEventListener("error", (e) => {
-    const el = document.getElementById("connText");
-    if (el) el.textContent = "JS lỗi: " + (e.message || "unknown");
-    console.log("Global JS error:", e.message, e);
-  });
+  document.addEventListener("DOMContentLoaded", () => {
+    console.log("DOMContentLoaded fired");
 
-  console.log("Dashboard script started");
+    // ========== DOM SHORTCUTS ==========
+    const $ = id => document.getElementById(id);
+    const fmt  = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
+    const fmt0 = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 });
 
-  // ======================= SUPABASE CONFIG =======================
-  const SUPABASE_URL = "https://upicvbecjmzkfgoawupo.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwaWN2YmVjam16a2Znb2F3dXBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNTAzMTEsImV4cCI6MjA4MDkyNjMxMX0.3pVGVnP_OjkwLCvoVQzK7xaJRUaiFzJfopzUvPsWwXE";
-
-  let supabase = null;
-  function getSupabase() {
-    if (!supabase) {
-      if (!window.supabase || !window.supabase.createClient) {
-        throw new Error("Supabase JS chưa load (window.supabase null)");
-      }
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log("Supabase client created");
+    function setConn(kind, text){
+      const dot = $("dot");
+      const ct  = $("connText");
+      if (dot) dot.className = "dot" + (kind ? " " + kind : "");
+      if (ct)  ct.textContent = text;
     }
-    return supabase;
-  }
-
-  // ======================= HELPERS =======================
-  const $      = id => document.getElementById(id);
-  const fmt    = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
-  const fmt0   = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 });
-  const cssRGB = v  => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-  const rgba   = (rgb,a) => `rgba(${rgb}, ${a})`;
-
-  function setConn(kind, text){
-    const dot = $("dot");
-    if (dot) dot.className = "dot" + (kind ? " " + kind : "");
-    const ct = $("connText");
-    if (ct) ct.textContent = text;
-  }
-  function toast(msg){
-    $("toast").textContent = msg;
-    $("toast").classList.add("show");
-    clearTimeout(toast._t);
-    toast._t = setTimeout(()=>$("toast").classList.remove("show"), 2200);
-  }
-
-  function toISO(d){
-    const yyyy = d.getFullYear();
-    const mm   = String(d.getMonth()+1).padStart(2,"0");
-    const dd   = String(d.getDate()).padStart(2,"0");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-  function addDaysISO(iso, delta){
-    const [y,m,d] = iso.split("-").map(Number);
-    const dt = new Date(y, m-1, d);
-    dt.setDate(dt.getDate()+delta);
-    return toISO(dt);
-  }
-  function getDMinus1ISO(){
-    const d = new Date();
-    d.setDate(d.getDate()-1);
-    return toISO(d);
-  }
-
-  const tabMeta = {
-    energy:  { name:"Sản lượng",      hint:"So sánh Sản lượng (kWh) H1 vs H2 trong ngày.",               color:"--c-prod" },
-    runtime: { name:"T chạy máy",     hint:"So sánh T chạy máy (h) H1 vs H2 trong ngày.",                color:"--c-run" },
-    P_H1:    { name:"P_H1",           hint:"Pmin & Pmax tổ máy H1 trong ngày.",                          color:"--c-ph1" },
-    P_H2:    { name:"P_H2",           hint:"Pmin & Pmax tổ máy H2 trong ngày.",                          color:"--c-ph2" },
-    MNH_7D:  { name:"MNH (D-7→D-1)",  hint:"Biểu đồ MNH (mực nước hồ) từ D-7 đến D-1.",                  color:"--c-mnh" },
-    Q_7D:    { name:"Q (D-7→D-1)",    hint:"Biểu đồ Q về & Q chạy máy (m³/s) D-7 → D-1.",                color:"--c-qch" }
-  };
-
-  function metricBox(label, value){
-    const n = Number(value);
-    const v = (value===null || value===undefined || value==="") ? "—" :
-              (Number.isFinite(n) ? fmt.format(n) : String(value));
-    return `
-      <div class="metric">
-        <div class="mLabel">${label}</div>
-        <div class="mVal">${v}</div>
-      </div>
-    `;
-  }
-
-  // ======================= DATA ACCESS =======================
-  async function testConnection(){
-    const sb = getSupabase();
-    const { error } = await sb.from("report_days").select("report_date").limit(1);
-    if (error) throw error;
-  }
-
-  async function fetchDay(dayISO){
-    const sb = getSupabase();
-
-    const { data: dayArr, error: e1 } = await sb
-      .from("report_days")
-      .select("*")
-      .eq("report_date", dayISO)
-      .limit(1);
-    if (e1) throw e1;
-    const day = dayArr?.[0] || null;
-
-    const { data: units, error: e2 } = await sb
-      .from("report_units")
-      .select("*")
-      .eq("report_date", dayISO)
-      .order("unit_code", { ascending:true });
-    if (e2) throw e2;
-
-    return { day, units: units || [] };
-  }
-
-  async function fetchRange(dayISO){
-    const sb = getSupabase();
-    const from = addDaysISO(dayISO, -7);
-    const to   = dayISO;
-    const { data, error } = await sb
-      .from("report_days")
-      .select("report_date,q_ve_tb,q_chay_tb,water_level")
-      .gte("report_date", from)
-      .lte("report_date", to)
-      .order("report_date", { ascending:true });
-    if (error) throw error;
-    return data || [];
-  }
-
-  function getUnit(units, code){
-    return units.find(u=>u.unit_code === code) || null;
-  }
-
-  // ======================= COMMON RENDER =======================
-  function renderCommon(dayISO, day, h1, h2){
-    $("basicTitle").textContent = dayISO ? `Ngày ${dayISO}` : "—";
-
-    // sản lượng ngày (ưu tiên sl_thuc_phat, fallback energy_kwh)
-    const e1src = h1?.sl_thuc_phat ?? h1?.energy_kwh;
-    const e2src = h2?.sl_thuc_phat ?? h2?.energy_kwh;
-    const e1 = Number(e1src);
-    const e2 = Number(e2src);
-    const has1 = Number.isFinite(e1);
-    const has2 = Number.isFinite(e2);
-    const esum = (has1?e1:0) + (has2?e2:0);
-
-    $("eH1").textContent = has1 ? fmt0.format(e1) : "—";
-    $("eH2").textContent = has2 ? fmt0.format(e2) : "—";
-    $("eSum").textContent = (has1 || has2) ? fmt0.format(esum) : "—";
-    $("eH1Sub").textContent = h1?.t_run != null ? `T: ${fmt.format(h1.t_run)} h` : "—";
-    $("eH2Sub").textContent = h2?.t_run != null ? `T: ${fmt.format(h2.t_run)} h` : "—";
-
-    // lũy kế tháng / năm
-    const m1 = Number(h1?.lk_thang_kwh);
-    const m2 = Number(h2?.lk_thang_kwh);
-    const y1 = Number(h1?.lk_nam_kwh);
-    const y2 = Number(h2?.lk_nam_kwh);
-    const mSum = (Number.isFinite(m1)?m1:0) + (Number.isFinite(m2)?m2:0);
-    const ySum = (Number.isFinite(y1)?y1:0) + (Number.isFinite(y2)?y2:0);
-
-    $("eMonthTotal").textContent = mSum>0 ? fmt0.format(mSum) : "—";
-    $("eMonthSub").textContent   =
-      `H1: ${Number.isFinite(m1)?fmt0.format(m1):"—"} • H2: ${Number.isFinite(m2)?fmt0.format(m2):"—"}`;
-
-    $("eYearTotal").textContent  = ySum>0 ? fmt0.format(ySum) : "—";
-    $("eYearSub").textContent    =
-      `H1: ${Number.isFinite(y1)?fmt0.format(y1):"—"} • H2: ${Number.isFinite(y2)?fmt0.format(y2):"—"}`;
-
-    // MNH + mực nước
-    const wl   = day?.water_level;
-    const mnh  = day?.mnh_qt;
-    const nsmo = day?.nsmo_tuan;
-    $("basicMNH").textContent =
-      (wl==null && mnh==null && nsmo==null) ? "—" :
-      [wl,mnh,nsmo].map(v=>v==null?"—":fmt.format(v)).join(" / ");
-    $("basicMNHSub").textContent = "Mực nước hồ / MNH QT / NSMO";
-
-    // Q về / Q chạy / Q xả
-    const qv = day?.q_ve_tb;
-    const qc = day?.q_chay_tb;
-    const qx = day?.q_xa;
-    if(qv==null && qc==null && qx==null){
-      $("basicQ").textContent = "—";
-    }else{
-      const parts = [];
-      if(qv!=null){
-        parts.push(`<span class="qItem qVe"><span class="qDot"></span><span class="qLabel">Q về</span> ${fmt.format(qv)}</span>`);
-      }
-      if(qc!=null){
-        parts.push(`<span class="qItem qChay"><span class="qDot"></span><span class="qLabel">Q chạy</span> ${fmt.format(qc)}</span>`);
-      }
-      if(qx!=null){
-        parts.push(`<span class="qItem qXa"><span class="qDot"></span><span class="qLabel">Q xả</span> ${fmt.format(qx)}</span>`);
-      }
-      $("basicQ").innerHTML = `<div class="qValueWrap">${parts.join("")}</div>`;
+    function toast(msg){
+      $("toast").textContent = msg;
+      $("toast").classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(()=>$("toast").classList.remove("show"), 2200);
     }
-    $("basicQSub").textContent = "Q về / Q chạy / Q xả";
 
-    const lines = [];
-    if(day?.note)        lines.push(String(day.note));
-    if(day?.pct_da_cap)  lines.push("PCT đã cấp: " + String(day.pct_da_cap));
-    if(day?.pct_da_khoa) lines.push("PCT đã khóa: " + String(day.pct_da_khoa));
-    $("basicNote").textContent = lines.length ? lines.join(" | ") : "—";
-    $("noteText").textContent  = "Ghi chú: " + (day?.note || "—");
-  }
+    // Thông báo là JS đã chạy
+    setConn("", "JS OK – đang kiểm tra Supabase…");
 
-  function renderPlantCard(u){
-    if(!u) return "";
-    return `
-      <div class="plantCard" style="margin-top:10px;">
-        <div class="plantHead">
-          <div class="name">🏭 ${u.unit_code}</div>
-          <span class="pill mono">${u.report_date}</span>
-        </div>
-        <div class="metrics">
-          ${metricBox("Sản lượng (kWh)",      u.sl_thuc_phat ?? u.energy_kwh)}
-          ${metricBox("T chạy (h)",           u.t_run)}
-          ${metricBox("Pmax (MW)",            u.p_max)}
-          ${metricBox("Pmin (MW)",            u.p_min)}
-          ${metricBox("AVC giao (kWh)",       u.avc_giao)}
-          ${metricBox("AVC nhận (kWh)",       u.avc_nhan)}
-          ${metricBox("Lũy kế tháng (kWh)",   u.lk_thang_kwh)}
-          ${metricBox("Lũy kế năm (kWh)",     u.lk_nam_kwh)}
-          ${metricBox("Khởi động ngày",       u.start_today)}
-          ${metricBox("Khởi động lũy tháng",  u.start_month)}
-          ${metricBox("Khởi động lũy năm",    u.start_year)}
-        </div>
-      </div>
-    `;
-  }
+    // ========== SUPABASE CLIENT ==========
+    const SUPABASE_URL = "https://upicvbecjmzkfgoawupo.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwaWN2YmVjam16a2Znb2F3dXBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNTAzMTEsImV4cCI6MjA4MDkyNjMxMX0.3pVGVnP_OjkwLCvoVQzK7xaJRUaiFzJfopzUvPsWwXE";
 
-  // ======================= CHARTS =======================
-  let currentTab     = "energy";
-  let chartInstance  = null;
-  let cache          = { dayISO:null, day:null, units:null, rangeISO:null, rangeRows:null };
-
-  function safeDestroyChart(){
-    if(chartInstance && typeof chartInstance.destroy === "function"){
-      chartInstance.destroy();
-    }
-    chartInstance = null;
-  }
-
-  function commonChartOptions(){
-    return {
-      responsive:true,
-      maintainAspectRatio:false,
-      interaction:{ mode:"index", intersect:false },
-      plugins:{
-        legend:{ labels:{ color:"rgba(231,236,255,.88)" } },
-        tooltip:{
-          callbacks:{
-            label:(ctx)=>{
-              const v = ctx.parsed.y;
-              const t = Number.isFinite(v) ? fmt.format(v) : "—";
-              return ` ${ctx.dataset.label}: ${t}`;
-            }
-          }
-        }
-      },
-      scales:{
-        x:{ ticks:{ color:"rgba(231,236,255,.7)" }, grid:{ color:"rgba(255,255,255,.07)" } },
-        y:{ ticks:{ color:"rgba(231,236,255,.7)" }, grid:{ color:"rgba(255,255,255,.07)" } }
-      }
-    };
-  }
-
-  function makeChart(config){
-    const ctx = $("chart").getContext("2d");
-    safeDestroyChart();
-    chartInstance = new Chart(ctx, config);
-  }
-
-  function chartCompareH1H2(dayISO, h1, h2, field, label, rgb){
-    const v1src = h1 ? (field==="energy_kwh" ? (h1.sl_thuc_phat ?? h1.energy_kwh) : h1[field]) : null;
-    const v2src = h2 ? (field==="energy_kwh" ? (h2.sl_thuc_phat ?? h2.energy_kwh) : h2[field]) : null;
-    const v1 = Number(v1src);
-    const v2 = Number(v2src);
-
-    $("metricName").textContent = tabMeta[currentTab].name;
-    $("chartHint").textContent  = `${label} • So sánh H1 vs H2 (ngày ${dayISO}).`;
-
-    makeChart({
-      type:"bar",
-      data:{
-        labels:["H1","H2"],
-        datasets:[{
-          label,
-          data:[Number.isFinite(v1)?v1:null, Number.isFinite(v2)?v2:null],
-          borderWidth:1.5,
-          backgroundColor:[rgba(rgb,.35), rgba(rgb,.24)],
-          borderColor:[rgba(rgb,.95), rgba(rgb,.7)]
-        }]
-      },
-      options:commonChartOptions()
-    });
-  }
-
-  function chartPMinMax(dayISO, unitLabel, u, rgb){
-    const pmin = u ? Number(u.p_min) : null;
-    const pmax = u ? Number(u.p_max) : null;
-
-    $("metricName").textContent = unitLabel;
-    $("chartHint").textContent  = `Pmin & Pmax của ${unitLabel} (ngày ${dayISO}).`;
-
-    makeChart({
-      type:"bar",
-      data:{
-        labels:["P min","P max"],
-        datasets:[{
-          label:unitLabel,
-          data:[Number.isFinite(pmin)?pmin:null, Number.isFinite(pmax)?pmax:null],
-          borderWidth:1.5,
-          backgroundColor:[rgba(rgb,.28), rgba(rgb,.38)],
-          borderColor:[rgba(rgb,.8),  rgba(rgb,.95)]
-        }]
-      },
-      options:commonChartOptions()
-    });
-  }
-
-  async function ensureRangeLoaded(dayISO){
-    if(cache.rangeISO === dayISO && cache.rangeRows) return;
-    cache.rangeRows = await fetchRange(dayISO);
-    cache.rangeISO  = dayISO;
-  }
-
-  function chartMNH(rows){
-    const rgb    = cssRGB("--c-mnh");
-    const labels = rows.map(r=>r.report_date);
-    const data   = rows.map(r => {
-      const n = Number(r.water_level);
-      return Number.isFinite(n)?n:null;
-    });
-
-    $("metricName").textContent = tabMeta[currentTab].name;
-    $("chartHint").textContent  = "MNH (mực nước hồ) • Xu hướng D-7 → D-1.";
-
-    const opts = commonChartOptions();
-    opts.plugins.tooltip.callbacks.label = (ctx)=>{
-      const v = ctx.parsed.y;
-      const t = Number.isFinite(v)?fmt.format(v):"—";
-      return ` MNH: ${t} m`;
-    };
-
-    makeChart({
-      type:"line",
-      data:{
-        labels,
-        datasets:[{
-          label:"Mực nước hồ (m)",
-          data,
-          spanGaps:true,
-          tension:.35,
-          borderWidth:2,
-          borderColor:rgba(rgb,.96),
-          backgroundColor:rgba(rgb,.24),
-          pointRadius:3,
-          pointHoverRadius:6,
-          fill:true
-        }]
-      },
-      options:opts
-    });
-  }
-
-  function chartQ(rows){
-    const rgbVe = cssRGB("--c-qve");
-    const rgbCh = cssRGB("--c-qch");
-    const labels = rows.map(r=>r.report_date);
-    const dataVe = rows.map(r => {
-      const n = Number(r.q_ve_tb);
-      return Number.isFinite(n)?n:null;
-    });
-    const dataCh = rows.map(r => {
-      const n = Number(r.q_chay_tb);
-      return Number.isFinite(n)?n:null;
-    });
-
-    $("metricName").textContent = tabMeta[currentTab].name;
-    $("chartHint").textContent  = "Q chạy máy & Q về (m³/s) • Xu hướng D-7 → D-1.";
-
-    const opts = commonChartOptions();
-    opts.plugins.tooltip.callbacks.label = (ctx)=>{
-      const v = ctx.parsed.y;
-      const t = Number.isFinite(v)?fmt.format(v):"—";
-      return ` ${ctx.dataset.label}: ${t} m³/s`;
-    };
-
-    makeChart({
-      type:"line",
-      data:{
-        labels,
-        datasets:[
-          {
-            label:"Q về (m³/s)",
-            data:dataVe,
-            spanGaps:true,
-            tension:.35,
-            borderWidth:2,
-            borderColor:rgba(rgbVe,.96),
-            backgroundColor:rgba(rgbVe,.18),
-            pointRadius:3,
-            pointHoverRadius:6,
-            fill:true
-          },
-          {
-            label:"Q chạy máy (m³/s)",
-            data:dataCh,
-            spanGaps:true,
-            tension:.35,
-            borderWidth:2,
-            borderColor:rgba(rgbCh,.96),
-            backgroundColor:rgba(rgbCh,.18),
-            pointRadius:3,
-            pointHoverRadius:6,
-            fill:true
-          }
-        ]
-      },
-      options:opts
-    });
-  }
-
-  async function renderChart(dayISO, day, units){
-    const h1   = getUnit(units,"H1");
-    const h2   = getUnit(units,"H2");
-    const meta = tabMeta[currentTab];
-    $("tabHint").textContent = meta.hint;
-    const rgb = cssRGB(meta.color);
-
-    if(currentTab === "energy"){
-      return chartCompareH1H2(dayISO, h1, h2, "energy_kwh", "Sản lượng (kWh)", rgb);
-    }
-    if(currentTab === "runtime"){
-      return chartCompareH1H2(dayISO, h1, h2, "t_run", "T chạy máy (h)", rgb);
-    }
-    if(currentTab === "P_H1"){
-      return chartPMinMax(dayISO, "P_H1", h1, rgb);
-    }
-    if(currentTab === "P_H2"){
-      return chartPMinMax(dayISO, "P_H2", h2, rgb);
-    }
-    await ensureRangeLoaded(dayISO);
-    const rows = cache.rangeRows || [];
-    if(currentTab === "MNH_7D"){
-      return chartMNH(rows);
-    }
-    if(currentTab === "Q_7D"){
-      return chartQ(rows);
-    }
-  }
-
-  // ======================= LOAD + UI =======================
-  async function loadDay(){
-    const dayISO = $("day").value;
-    $("dateText").textContent = dayISO || "—";
-    if(!dayISO){
-      toast("Chọn ngày trước đã");
+    if (!window.supabase || !window.supabase.createClient) {
+      console.error("Supabase JS CDN chưa load");
+      setConn("err", "Lỗi: Supabase JS chưa load");
       return;
     }
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("Supabase client created", sb);
 
-    $("btnLoad").disabled = true;
-    $("detailWrap").innerHTML = `<div class="empty">Đang tải dữ liệu…</div>`;
-    safeDestroyChart();
+    // ========== DATE HELPERS ==========
+    function toISO(d){
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth()+1).padStart(2,"0");
+      const dd = String(d.getDate()).padStart(2,"0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    function addDaysISO(iso, delta){
+      const [y,m,d] = iso.split("-").map(Number);
+      const dt = new Date(y, m-1, d);
+      dt.setDate(dt.getDate()+delta);
+      return toISO(dt);
+    }
+    function getDMinus1ISO(){
+      const d = new Date();
+      d.setDate(d.getDate()-1);
+      return toISO(d);
+    }
 
-    try{
-      const { day, units } = await fetchDay(dayISO);
-      cache.dayISO = dayISO;
-      cache.day    = day;
-      cache.units  = units;
+    // ========== TAB META + COLOR HELPERS ==========
+    const cssRGB = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const rgba   = (rgb,a) => `rgba(${rgb}, ${a})`;
 
-      const h1 = getUnit(units,"H1");
-      const h2 = getUnit(units,"H2");
+    const tabMeta = {
+      energy:  { name:"Sản lượng",      hint:"So sánh Sản lượng (kWh) H1 vs H2 trong ngày.",               color:"--c-prod" },
+      runtime: { name:"T chạy máy",     hint:"So sánh T chạy máy (h) H1 vs H2 trong ngày.",                color:"--c-run" },
+      P_H1:    { name:"P_H1",           hint:"Pmin & Pmax tổ máy H1 trong ngày.",                          color:"--c-ph1" },
+      P_H2:    { name:"P_H2",           hint:"Pmin & Pmax tổ máy H2 trong ngày.",                          color:"--c-ph2" },
+      MNH_7D:  { name:"MNH (D-7→D-1)",  hint:"Biểu đồ MNH (mực nước hồ) từ D-7 đến D-1.",                  color:"--c-mnh" },
+      Q_7D:    { name:"Q (D-7→D-1)",    hint:"Biểu đồ Q về & Q chạy máy (m³/s) D-7 → D-1.",                color:"--c-qch" }
+    };
 
-      if(!day && (!h1 && !h2)){
-        $("detailWrap").innerHTML = `<div class="empty">Không có dữ liệu cho ngày này.</div>`;
-        toast("Ngày này chưa có dữ liệu");
+    // ========== DATA ACCESS ==========
+    async function testConnection(){
+      const { error } = await sb.from("report_days").select("report_date").limit(1);
+      if (error) throw error;
+    }
+
+    async function fetchDay(dayISO){
+      const { data: dayArr, error: e1 } = await sb
+        .from("report_days")
+        .select("*")
+        .eq("report_date", dayISO)
+        .limit(1);
+      if (e1) throw e1;
+      const day = dayArr?.[0] || null;
+
+      const { data: units, error: e2 } = await sb
+        .from("report_units")
+        .select("*")
+        .eq("report_date", dayISO)
+        .order("unit_code", { ascending:true });
+      if (e2) throw e2;
+
+      return { day, units: units || [] };
+    }
+
+    async function fetchRange(dayISO){
+      const from = addDaysISO(dayISO, -7);
+      const to   = dayISO;
+      const { data, error } = await sb
+        .from("report_days")
+        .select("report_date,q_ve_tb,q_chay_tb,water_level")
+        .gte("report_date", from)
+        .lte("report_date", to)
+        .order("report_date", { ascending:true });
+      if (error) throw error;
+      return data || [];
+    }
+
+    function getUnit(units, code){
+      return units.find(u=>u.unit_code === code) || null;
+    }
+
+    // ========== RENDER COMMON ==========
+    function metricBox(label, value){
+      const n = Number(value);
+      const v = (value===null || value===undefined || value==="") ? "—" :
+                (Number.isFinite(n) ? fmt.format(n) : String(value));
+      return `
+        <div class="metric">
+          <div class="mLabel">${label}</div>
+          <div class="mVal">${v}</div>
+        </div>
+      `;
+    }
+
+    function renderCommon(dayISO, day, h1, h2){
+      $("basicTitle").textContent = dayISO ? `Ngày ${dayISO}` : "—";
+
+      const e1src = h1?.sl_thuc_phat ?? h1?.energy_kwh;
+      const e2src = h2?.sl_thuc_phat ?? h2?.energy_kwh;
+      const e1 = Number(e1src);
+      const e2 = Number(e2src);
+      const has1 = Number.isFinite(e1);
+      const has2 = Number.isFinite(e2);
+      const esum = (has1?e1:0) + (has2?e2:0);
+
+      $("eH1").textContent = has1 ? fmt0.format(e1) : "—";
+      $("eH2").textContent = has2 ? fmt0.format(e2) : "—";
+      $("eSum").textContent = (has1 || has2) ? fmt0.format(esum) : "—";
+      $("eH1Sub").textContent = h1?.t_run != null ? `T: ${fmt.format(h1.t_run)} h` : "—";
+      $("eH2Sub").textContent = h2?.t_run != null ? `T: ${fmt.format(h2.t_run)} h` : "—";
+
+      const m1 = Number(h1?.lk_thang_kwh);
+      const m2 = Number(h2?.lk_thang_kwh);
+      const y1 = Number(h1?.lk_nam_kwh);
+      const y2 = Number(h2?.lk_nam_kwh);
+      const mSum = (Number.isFinite(m1)?m1:0) + (Number.isFinite(m2)?m2:0);
+      const ySum = (Number.isFinite(y1)?y1:0) + (Number.isFinite(y2)?y2:0);
+
+      $("eMonthTotal").textContent = mSum>0 ? fmt0.format(mSum) : "—";
+      $("eMonthSub").textContent =
+        `H1: ${Number.isFinite(m1)?fmt0.format(m1):"—"} • H2: ${Number.isFinite(m2)?fmt0.format(m2):"—"}`;
+
+      $("eYearTotal").textContent  = ySum>0 ? fmt0.format(ySum) : "—";
+      $("eYearSub").textContent =
+        `H1: ${Number.isFinite(y1)?fmt0.format(y1):"—"} • H2: ${Number.isFinite(y2)?fmt0.format(y2):"—"}`;
+
+      const wl   = day?.water_level;
+      const mnh  = day?.mnh_qt;
+      const nsmo = day?.nsmo_tuan;
+      $("basicMNH").textContent =
+        (wl==null && mnh==null && nsmo==null) ? "—" :
+        [wl,mnh,nsmo].map(v=>v==null?"—":fmt.format(v)).join(" / ");
+      $("basicMNHSub").textContent = "Mực nước hồ / MNH QT / NSMO";
+
+      const qv = day?.q_ve_tb;
+      const qc = day?.q_chay_tb;
+      const qx = day?.q_xa;
+      if(qv==null && qc==null && qx==null){
+        $("basicQ").textContent = "—";
+      }else{
+        const parts = [];
+        if(qv!=null){
+          parts.push(`<span class="qItem qVe"><span class="qDot"></span><span class="qLabel">Q về</span> ${fmt.format(qv)}</span>`);
+        }
+        if(qc!=null){
+          parts.push(`<span class="qItem qChay"><span class="qDot"></span><span class="qLabel">Q chạy</span> ${fmt.format(qc)}</span>`);
+        }
+        if(qx!=null){
+          parts.push(`<span class="qItem qXa"><span class="qDot"></span><span class="qLabel">Q xả</span> ${fmt.format(qx)}</span>`);
+        }
+        $("basicQ").innerHTML = `<div class="qValueWrap">${parts.join("")}</div>`;
+      }
+      $("basicQSub").textContent = "Q về / Q chạy / Q xả";
+
+      const lines = [];
+      if(day?.note)        lines.push(String(day.note));
+      if(day?.pct_da_cap)  lines.push("PCT đã cấp: " + String(day.pct_da_cap));
+      if(day?.pct_da_khoa) lines.push("PCT đã khóa: " + String(day.pct_da_khoa));
+      $("basicNote").textContent = lines.length ? lines.join(" | ") : "—";
+      $("noteText").textContent  = "Ghi chú: " + (day?.note || "—");
+    }
+
+    function renderPlantCard(u){
+      if(!u) return "";
+      return `
+        <div class="plantCard" style="margin-top:10px;">
+          <div class="plantHead">
+            <div class="name">🏭 ${u.unit_code}</div>
+            <span class="pill mono">${u.report_date}</span>
+          </div>
+          <div class="metrics">
+            ${metricBox("Sản lượng (kWh)",      u.sl_thuc_phat ?? u.energy_kwh)}
+            ${metricBox("T chạy (h)",           u.t_run)}
+            ${metricBox("Pmax (MW)",            u.p_max)}
+            ${metricBox("Pmin (MW)",            u.p_min)}
+            ${metricBox("AVC giao (kWh)",       u.avc_giao)}
+            ${metricBox("AVC nhận (kWh)",       u.avc_nhan)}
+            ${metricBox("Lũy kế tháng (kWh)",   u.lk_thang_kwh)}
+            ${metricBox("Lũy kế năm (kWh)",     u.lk_nam_kwh)}
+            ${metricBox("Khởi động ngày",       u.start_today)}
+            ${metricBox("Khởi động lũy tháng",  u.start_month)}
+            ${metricBox("Khởi động lũy năm",    u.start_year)}
+          </div>
+        </div>
+      `;
+    }
+
+    // ========== CHARTS ==========
+    let currentTab    = "energy";
+    let chartInstance = null;
+    let cache         = { dayISO:null, day:null, units:null, rangeISO:null, rangeRows:null };
+
+    function safeDestroyChart(){
+      if(chartInstance && typeof chartInstance.destroy === "function"){
+        chartInstance.destroy();
+      }
+      chartInstance = null;
+    }
+
+    function commonChartOptions(){
+      return {
+        responsive:true,
+        maintainAspectRatio:false,
+        interaction:{ mode:"index", intersect:false },
+        plugins:{
+          legend:{ labels:{ color:"rgba(231,236,255,.88)" } },
+          tooltip:{
+            callbacks:{
+              label:(ctx)=>{
+                const v = ctx.parsed.y;
+                const t = Number.isFinite(v) ? fmt.format(v) : "—";
+                return ` ${ctx.dataset.label}: ${t}`;
+              }
+            }
+          }
+        },
+        scales:{
+          x:{ ticks:{ color:"rgba(231,236,255,.7)" }, grid:{ color:"rgba(255,255,255,.07)" } },
+          y:{ ticks:{ color:"rgba(231,236,255,.7)" }, grid:{ color:"rgba(255,255,255,.07)" } }
+        }
+      };
+    }
+
+    function makeChart(config){
+      const ctx = $("chart").getContext("2d");
+      safeDestroyChart();
+      chartInstance = new Chart(ctx, config);
+    }
+
+    function chartCompareH1H2(dayISO, h1, h2, field, label, rgb){
+      const v1src = h1 ? (field==="energy_kwh" ? (h1.sl_thuc_phat ?? h1.energy_kwh) : h1[field]) : null;
+      const v2src = h2 ? (field==="energy_kwh" ? (h2.sl_thuc_phat ?? h2.energy_kwh) : h2[field]) : null;
+      const v1 = Number(v1src);
+      const v2 = Number(v2src);
+
+      $("metricName").textContent = tabMeta[currentTab].name;
+      $("chartHint").textContent  = `${label} • So sánh H1 vs H2 (ngày ${dayISO}).`;
+
+      makeChart({
+        type:"bar",
+        data:{
+          labels:["H1","H2"],
+          datasets:[{
+            label,
+            data:[Number.isFinite(v1)?v1:null, Number.isFinite(v2)?v2:null],
+            borderWidth:1.5,
+            backgroundColor:[rgba(rgb,.35), rgba(rgb,.24)],
+            borderColor:[rgba(rgb,.95), rgba(rgb,.7)]
+          }]
+        },
+        options:commonChartOptions()
+      });
+    }
+
+    function chartPMinMax(dayISO, unitLabel, u, rgb){
+      const pmin = u ? Number(u.p_min) : null;
+      const pmax = u ? Number(u.p_max) : null;
+
+      $("metricName").textContent = unitLabel;
+      $("chartHint").textContent  = `Pmin & Pmax của ${unitLabel} (ngày ${dayISO}).`;
+
+      makeChart({
+        type:"bar",
+        data:{
+          labels:["P min","P max"],
+          datasets:[{
+            label:unitLabel,
+            data:[Number.isFinite(pmin)?pmin:null, Number.isFinite(pmax)?pmax:null],
+            borderWidth:1.5,
+            backgroundColor:[rgba(rgb,.28), rgba(rgb,.38)],
+            borderColor:[rgba(rgb,.8),  rgba(rgb,.95)]
+          }]
+        },
+        options:commonChartOptions()
+      });
+    }
+
+    async function ensureRangeLoaded(dayISO){
+      if(cache.rangeISO === dayISO && cache.rangeRows) return;
+      cache.rangeRows = await fetchRange(dayISO);
+      cache.rangeISO  = dayISO;
+    }
+
+    function chartMNH(rows){
+      const rgb    = cssRGB("--c-mnh");
+      const labels = rows.map(r=>r.report_date);
+      const data   = rows.map(r => {
+        const n = Number(r.water_level);
+        return Number.isFinite(n)?n:null;
+      });
+
+      $("metricName").textContent = tabMeta[currentTab].name;
+      $("chartHint").textContent  = "MNH (mực nước hồ) • Xu hướng D-7 → D-1.";
+
+      const opts = commonChartOptions();
+      opts.plugins.tooltip.callbacks.label = (ctx)=>{
+        const v = ctx.parsed.y;
+        const t = Number.isFinite(v)?fmt.format(v):"—";
+        return ` MNH: ${t} m`;
+      };
+
+      makeChart({
+        type:"line",
+        data:{
+          labels,
+          datasets:[{
+            label:"Mực nước hồ (m)",
+            data,
+            spanGaps:true,
+            tension:.35,
+            borderWidth:2,
+            borderColor:rgba(rgb,.96),
+            backgroundColor:rgba(rgb,.24),
+            pointRadius:3,
+            pointHoverRadius:6,
+            fill:true
+          }]
+        },
+        options:opts
+      });
+    }
+
+    function chartQ(rows){
+      const rgbVe = cssRGB("--c-qve");
+      const rgbCh = cssRGB("--c-qch");
+      const labels = rows.map(r=>r.report_date);
+      const dataVe = rows.map(r => {
+        const n = Number(r.q_ve_tb);
+        return Number.isFinite(n)?n:null;
+      });
+      const dataCh = rows.map(r => {
+        const n = Number(r.q_chay_tb);
+        return Number.isFinite(n)?n:null;
+      });
+
+      $("metricName").textContent = tabMeta[currentTab].name;
+      $("chartHint").textContent  = "Q chạy máy & Q về (m³/s) • Xu hướng D-7 → D-1.";
+
+      const opts = commonChartOptions();
+      opts.plugins.tooltip.callbacks.label = (ctx)=>{
+        const v = ctx.parsed.y;
+        const t = Number.isFinite(v)?fmt.format(v):"—";
+        return ` ${ctx.dataset.label}: ${t} m³/s`;
+      };
+
+      makeChart({
+        type:"line",
+        data:{
+          labels,
+          datasets:[
+            {
+              label:"Q về (m³/s)",
+              data:dataVe,
+              spanGaps:true,
+              tension:.35,
+              borderWidth:2,
+              borderColor:rgba(rgbVe,.96),
+              backgroundColor:rgba(rgbVe,.18),
+              pointRadius:3,
+              pointHoverRadius:6,
+              fill:true
+            },
+            {
+              label:"Q chạy máy (m³/s)",
+              data:dataCh,
+              spanGaps:true,
+              tension:.35,
+              borderWidth:2,
+              borderColor:rgba(rgbCh,.96),
+              backgroundColor:rgba(rgbCh,.18),
+              pointRadius:3,
+              pointHoverRadius:6,
+              fill:true
+            }
+          ]
+        },
+        options:opts
+      });
+    }
+
+    async function renderChart(dayISO, day, units){
+      const h1   = getUnit(units,"H1");
+      const h2   = getUnit(units,"H2");
+      const meta = tabMeta[currentTab];
+      $("tabHint").textContent = meta.hint;
+      const rgb = cssRGB(meta.color);
+
+      if(currentTab === "energy"){
+        return chartCompareH1H2(dayISO, h1, h2, "energy_kwh", "Sản lượng (kWh)", rgb);
+      }
+      if(currentTab === "runtime"){
+        return chartCompareH1H2(dayISO, h1, h2, "t_run", "T chạy máy (h)", rgb);
+      }
+      if(currentTab === "P_H1"){
+        return chartPMinMax(dayISO, "P_H1", h1, rgb);
+      }
+      if(currentTab === "P_H2"){
+        return chartPMinMax(dayISO, "P_H2", h2, rgb);
+      }
+      await ensureRangeLoaded(dayISO);
+      const rows = cache.rangeRows || [];
+      if(currentTab === "MNH_7D"){
+        return chartMNH(rows);
+      }
+      if(currentTab === "Q_7D"){
+        return chartQ(rows);
+      }
+    }
+
+    // ========== LOAD + UI ==========
+    async function loadDay(){
+      const dayISO = $("day").value;
+      $("dateText").textContent = dayISO || "—";
+      if(!dayISO){
+        toast("Chọn ngày trước đã");
         return;
       }
 
-      renderCommon(dayISO, day, h1, h2);
-
-      const view = $("view").value;
-      let html = "";
-      if(view === "BOTH"){
-        html = renderPlantCard(h1) + renderPlantCard(h2);
-      }else if(view === "H1"){
-        html = renderPlantCard(h1) || `<div class="empty">Không có dữ liệu H1 cho ngày này.</div>`;
-      }else{
-        html = renderPlantCard(h2) || `<div class="empty">Không có dữ liệu H2 cho ngày này.</div>`;
-      }
-      $("detailWrap").innerHTML = html;
-
-      await renderChart(dayISO, day, units);
-      toast("Đã tải dữ liệu");
-    }catch(e){
-      console.error("loadDay error", e);
-      $("detailWrap").innerHTML =
-        `<div class="empty">❌ Lỗi tải dữ liệu: <span class="mono">${e.message || String(e)}</span></div>`;
+      $("btnLoad").disabled = true;
+      $("detailWrap").innerHTML = `<div class="empty">Đang tải dữ liệu…</div>`;
       safeDestroyChart();
-      toast("Lỗi tải dữ liệu");
-    }finally{
-      $("btnLoad").disabled = false;
-    }
-  }
 
-  // ======================= INIT =======================
-  window.addEventListener("load", async ()=>{
-    console.log("window load fired");
-    $("day").value = getDMinus1ISO();
-    $("dateText").textContent = $("day").value;
+      try{
+        const { day, units } = await fetchDay(dayISO);
+        cache.dayISO = dayISO;
+        cache.day    = day;
+        cache.units  = units;
 
-    setConn("", "Đang kiểm tra Supabase…");
-    try{
-      await testConnection();
-      setConn("ok","Kết nối OK");
-    }catch(e){
-      console.error("testConnection error", e);
-      setConn("err","Lỗi kết nối / RLS: " + (e.message || ""));
-      toast("Kiểm tra RLS / anon key");
-    }
+        const h1 = getUnit(units,"H1");
+        const h2 = getUnit(units,"H2");
 
-    await loadDay();
-  });
+        if(!day && (!h1 && !h2)){
+          $("detailWrap").innerHTML = `<div class="empty">Không có dữ liệu cho ngày này.</div>`;
+          toast("Ngày này chưa có dữ liệu");
+          return;
+        }
 
-  $("btnLoad").addEventListener("click", loadDay);
-  $("day").addEventListener("change", loadDay);
-  $("view").addEventListener("change", loadDay);
+        renderCommon(dayISO, day, h1, h2);
 
-  $("metricTabs").addEventListener("click", async (e)=>{
-    const t = e.target.closest(".tab");
-    if(!t) return;
-    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-    t.classList.add("active");
-    currentTab = t.dataset.m;
+        const view = $("view").value;
+        let html = "";
+        if(view === "BOTH"){
+          html = renderPlantCard(h1) + renderPlantCard(h2);
+        }else if(view === "H1"){
+          html = renderPlantCard(h1) || `<div class="empty">Không có dữ liệu H1 cho ngày này.</div>`;
+        }else{
+          html = renderPlantCard(h2) || `<div class="empty">Không có dữ liệu H2 cho ngày này.</div>`;
+        }
+        $("detailWrap").innerHTML = html;
 
-    const meta = tabMeta[currentTab];
-    $("metricName").textContent = meta.name;
-    $("tabHint").textContent    = meta.hint;
-
-    const dayISO = $("day").value;
-    if(!dayISO) return;
-    try{
-      if(cache.dayISO === dayISO && cache.day){
-        await renderChart(dayISO, cache.day, cache.units || []);
-      }else{
-        await loadDay();
+        await renderChart(dayISO, day, units);
+        toast("Đã tải dữ liệu");
+      }catch(e){
+        console.error("loadDay error", e);
+        $("detailWrap").innerHTML =
+          `<div class="empty">❌ Lỗi tải dữ liệu: <span class="mono">${e.message || String(e)}</span></div>`;
+        safeDestroyChart();
+        toast("Lỗi tải dữ liệu");
+      }finally{
+        $("btnLoad").disabled = false;
       }
-      toast(`Biểu đồ: ${meta.name}`);
-    }catch(err){
-      console.error("metricTabs chart error", err);
-      safeDestroyChart();
-      toast("Không vẽ được biểu đồ");
     }
-  });
-</script>
+
+    // ========== INIT ==========
+    (async () => {
+      $("day").value = getDMinus1ISO();
+      $("dateText").textContent = $("day").value;
+
+      try{
+        await testConnection();
+        setConn("ok","Kết nối OK");
+      }catch(e){
+        console.error("testConnection error", e);
+        setConn("err","Lỗi kết nối / RLS");
+        toast("Kiểm tra RLS / anon key");
+        return; // dừng nếu không kết nối được
+      }
+
+      await loadDay();
+    })();
+
+    // LISTENERS
+    $("btnLoad").addEventListener("click", loadDay);
+    $("day").addEventListener("change", loadDay);
+    $("view").addEventListener("change", loadDay);
+
+    $("metricTabs").addEventListener("click", async (e)=>{
+      const t = e.target.closest(".tab");
+      if(!t) return;
+      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+      t.classList.add("active");
+      currentTab = t.dataset.m;
+
+      const meta = tabMeta[currentTab];
+      $("metricName").textContent = meta.name;
+      $("tabHint").textContent    = meta.hint;
+
+      const dayISO = $("day").value;
+      if(!dayISO) return;
+      try{
+        if(cache.dayISO === dayISO && cache.day){
+          await renderChart(dayISO, cache.day, cache.units || []);
+        }else{
+          await loadDay();
+        }
+        toast(`Biểu đồ: ${meta.name}`);
+      }catch(err){
+        console.error("metricTabs chart error", err);
+        safeDestroyChart();
+        toast("Không vẽ được biểu đồ");
+      }
+    });
+
+  }); // end DOMContentLoaded
+  </script>
 
   <!-- Service worker đăng ký PWA -->
   <script>
@@ -1005,3 +999,4 @@
   </script>
 </body>
 </html>
+
