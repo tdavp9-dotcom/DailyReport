@@ -287,7 +287,7 @@
           <h1>📊 Dashboard báo cáo ngày
             <span class="chip"><span id="dot" class="dot"></span><span id="connText">Đang kiểm tra…</span></span>
           </h1>
-          <small>Mặc định hiển thị D-1 • Lũy kế tháng &amp; năm • Biểu đồ Q về + Q chạy máy</small>
+          <small>Mặc định hiển thị D-1 • Lũy kế Tháng &amp; Năm • Biểu đồ Q về + Q chạy máy</small>
         </div>
         <span class="chip version">v2.0</span>
       </div>
@@ -377,6 +377,24 @@
             <div class="sub" id="selfRatioSub">Trên tổng sản lượng ngày</div>
           </div>
         </div>
+<!-- SẢN LƯỢNG ĐẶC BIỆT -->
+<div class="grid3" style="margin-top:10px;">
+  <div class="kpi">
+    <div class="label">SL đăng ký phát (kWh)</div>
+    <div class="value" id="slKeHoachTotal">—</div>
+    <div class="sub" id="slKeHoachSub">H1 / H2</div>
+  </div>
+  <div class="kpi">
+    <div class="label">SL A0 huy động (kWh)</div>
+    <div class="value" id="slA0Total">—</div>
+    <div class="sub" id="slA0Sub">H1 / H2</div>
+  </div>
+  <div class="kpi">
+    <div class="label">QC tháng (kWh)</div>
+    <div class="value" id="slQcTotal">—</div>
+    <div class="sub" id="slQcSub">H1 / H2</div>
+  </div>
+</div>
 
         <!-- MNH & Q -->
         <div class="grid2" style="margin-top:10px;">
@@ -647,6 +665,35 @@ function renderCommon(dayISO, day, h1, h2){
   if (!Number.isFinite(sTotal)) {
     sTotal = (Number.isFinite(s1)?s1:0) + (Number.isFinite(s2)?s2:0);
   }
+// --- SL ĐẶC BIỆT: ĐĂNG KÝ / A0 HUY ĐỘNG / QC ---
+const k1 = Number(h1?.sl_dang_ky);
+const k2 = Number(h2?.sl_dang_ky);
+const a1 = Number(h1?.sl_a0_huy_dong);
+const a2 = Number(h2?.sl_a0_huy_dong);
+const q1 = Number(h1?.sl_qc_thang);
+const q2 = Number(h2?.sl_qc_thang);
+
+// Hiển thị từng tổ + tổng
+$("slKeHoachTotal").textContent =
+  (Number.isFinite(k1) || Number.isFinite(k2)) ?
+    fmt0.format((Number.isFinite(k1)?k1:0) + (Number.isFinite(k2)?k2:0)) : "—";
+
+$("slKeHoachSub").textContent =
+  `H1: ${Number.isFinite(k1)?fmt0.format(k1):"—"} • H2: ${Number.isFinite(k2)?fmt0.format(k2):"—"}`;
+
+$("slA0Total").textContent =
+  (Number.isFinite(a1) || Number.isFinite(a2)) ?
+    fmt0.format((Number.isFinite(a1)?a1:0) + (Number.isFinite(a2)?a2:0)) : "—";
+
+$("slA0Sub").textContent =
+  `H1: ${Number.isFinite(a1)?fmt0.format(a1):"—"} • H2: ${Number.isFinite(a2)?fmt0.format(a2):"—"}`;
+
+$("slQcTotal").textContent =
+  (Number.isFinite(q1) || Number.isFinite(q2)) ?
+    fmt0.format((Number.isFinite(q1)?q1:0) + (Number.isFinite(q2)?q2:0)) : "—";
+
+$("slQcSub").textContent =
+  `H1: ${Number.isFinite(q1)?fmt0.format(q1):"—"} • H2: ${Number.isFinite(q2)?fmt0.format(q2):"—"}`;
 
   const hasSelf = sTotal > 0;
   $("eSelfTotal").textContent = hasSelf ? fmt0.format(sTotal) : "—";
@@ -735,9 +782,6 @@ function renderPlantCard(u){
         ${metricBox("Khởi động ngày",       u.start_today)}
         ${metricBox("Khởi động lũy tháng",  u.start_month)}
         ${metricBox("Khởi động lũy năm",    u.start_year)}
-        ${metricBox("SL đăng ký (kWh)",     u.sl_dang_ky)}
-        ${metricBox("A0 tự huy động (kWh)", u.sl_a0_huy_dong)}
-        ${metricBox("QC tháng (kWh)",       u.sl_qc_thang)}
       </div>
     </div>
   `;
@@ -1101,5 +1145,6 @@ $("metricTabs").addEventListener("click", async (e)=>{
   </script>
 </body>
 </html>
+
 
 
