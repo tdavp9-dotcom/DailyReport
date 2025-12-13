@@ -1,12 +1,12 @@
 {
-  "name": "Báo cáo thủy điện A Vương",
-  "short_name": "A Vuong",
+  "name": "Dashboard Báo Cáo Ngày",
+  "short_name": "Báo Cáo Ngày",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#031021",
-  "theme_color": "#031021",
-  "description": "Ứng dụng nhập và xem dữ liệu vận hành hồ đập.",
+  "orientation": "portrait",
+  "background_color": "#050816",
+  "theme_color": "#0D1224",
   "icons": [
     {
       "src": "/icons/icon-192.png",
