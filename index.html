@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Dashboard báo cáo sản xuất ngày • V2.0</title>
+  <title>Dashboard báo cáo sản xuất ngày • V2.3</title>
 
   <!-- PWA -->
   <meta name="theme-color" content="#050816" />
@@ -37,12 +37,15 @@
 
       --c-prod: 96,165,250;   /* sản lượng */
       --c-run:  52,211,153;   /* T chạy */
-      --c-ph1:  251,191,36;   /* P_H1 */
-      --c-ph2:  167,139,250;  /* P_H2 */
+      --c-h1p:  251,191,36;   /* H1 24h */
+      --c-h2p:  167,139,250;  /* H2 24h */
+      --c-a0p:  248,113,113;  /* NSMO 24h */
       --c-mnh:  34,211,238;   /* MNH */
-      --c-qve:  59,130,246;   /* Q về */
-      --c-qch:  248,113,113;  /* Q chạy */
-      --c-qxa:  251,191,36;   /* Q xả */
+
+      /* 3 màu “chuẩn” như Q */
+      --c-qve:  59,130,246;   /* H1 / Q về */
+      --c-qch:  248,113,113;  /* H2 / Q chạy */
+      --c-qxa:  251,191,36;   /* Tổng / Q xả */
 
       --good:#34D399;
       --bad:#FB7185;
@@ -152,16 +155,74 @@
     .grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
     .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 
+    /* =========================
+       KPI GROUP COLORS (5 nhóm)
+       ========================= */
+    :root{
+      --g1: var(--c-qve); /* Nhóm 1: H1 */
+      --g2: var(--c-qch); /* Nhóm 2: H2 */
+      --g3: var(--c-qxa); /* Nhóm 3: Tổng */
+      --g4: var(--c-mnh); /* Nhóm 4: MNH */
+      --g5: 167,139,250;  /* Nhóm 5: Khác */
+    }
+
     .kpi{
       padding:11px 11px;
       border-radius:var(--radius);
       border:1px solid rgba(255,255,255,.12);
       background: radial-gradient(circle at 0% 0%, rgba(255,255,255,.07), rgba(7,11,30,.98));
       min-height:76px;
+      position:relative;
+      overflow:hidden;
+    }
+    .kpi:after{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        radial-gradient(420px 120px at 15% 0%, rgba(255,255,255,.06), transparent 60%),
+        radial-gradient(260px 160px at 0% 0%, rgba(255,255,255,.05), transparent 65%);
+      pointer-events:none;
     }
     .kpi .label{ font-size:12px; color:var(--muted); }
-    .kpi .value{ margin-top:6px; font-size:18px; font-weight:800; letter-spacing:.2px; color:var(--text); }
-    .kpi .sub{ margin-top:4px; font-size:11px; color:var(--muted2); }
+    .kpi .value{ margin-top:6px; font-size:18px; font-weight:800; letter-spacing:.25px; color:var(--text); }
+    .kpi .sub{ margin-top:4px; font-size:11px; color:var(--muted2); opacity:.9; }
+
+    .kpi .label:before{
+      content:"";
+      display:inline-block;
+      width:9px;height:9px;border-radius:999px;
+      margin-right:8px;
+      vertical-align:middle;
+      background:rgba(255,255,255,.30);
+      box-shadow: 0 0 0 5px rgba(255,255,255,.06);
+    }
+
+    .kpi[data-g]{
+      border-color: rgba(var(--g-rgb), .20);
+      background:
+        radial-gradient(520px 160px at 20% -20%, rgba(var(--g-rgb), .18), transparent 60%),
+        radial-gradient(260px 160px at 0% 0%, rgba(255,255,255,.06), transparent 70%),
+        rgba(7,11,30,.98);
+    }
+    .kpi[data-g] .label:before{
+      background: rgba(var(--g-rgb), .95);
+      box-shadow: 0 0 0 5px rgba(var(--g-rgb), .12), 0 0 18px rgba(var(--g-rgb), .18);
+    }
+    .kpi[data-g] .value{
+      color: rgba(var(--g-rgb), .98);
+      text-shadow: 0 0 18px rgba(var(--g-rgb), .18);
+    }
+    .kpi[data-g] .sub{ color: rgba(231,236,255,.72); }
+
+    .kpi.g1{ --g-rgb: var(--g1); } /* H1 */
+    .kpi.g2{ --g-rgb: var(--g2); } /* H2 */
+    .kpi.g3{ --g-rgb: var(--g3); } /* Tổng */
+    .kpi.g4{ --g-rgb: var(--g4); } /* MNH */
+    .kpi.g5{ --g-rgb: var(--g5); } /* Khác */
+
+    .sub .h1v{ color: rgba(var(--c-qve), .95); font-weight:800; }
+    .sub .h2v{ color: rgba(var(--c-qch), .95); font-weight:800; }
+    .sub .sumv{ color: rgba(var(--c-qxa), .95); font-weight:800; }
 
     .noteBox{
       margin-top:10px;
@@ -203,20 +264,44 @@
 
     canvas{ width:100% !important; height:280px !important; }
 
+    /* =========================
+       CHI TIẾT TỔ MÁY (pro color)
+       ========================= */
     .plantCard{
       border-radius:var(--radius2);
       border:1px solid rgba(255,255,255,.10);
       background:rgba(7,10,32,.96);
       overflow:hidden;
+      position:relative;
     }
+    .plantCard:before{
+      content:"";
+      position:absolute; inset:-2px;
+      background: radial-gradient(520px 180px at 15% -20%, rgba(var(--u-rgb), .16), transparent 60%);
+      pointer-events:none;
+    }
+    .plantCard.h1{ --u-rgb: var(--c-qve); border-color: rgba(var(--c-qve), .22); }
+    .plantCard.h2{ --u-rgb: var(--c-qch); border-color: rgba(var(--c-qch), .22); }
+
     .plantHead{
       padding:11px 14px;
       display:flex; justify-content:space-between; align-items:center;
       gap:10px;
       border-bottom:1px solid rgba(255,255,255,.08);
       background:linear-gradient(90deg,rgba(255,255,255,.03),rgba(255,255,255,.01));
+      position:relative;
     }
-    .plantHead .name{ font-weight:800; letter-spacing:.3px; color:var(--text2); }
+    .plantHead .name{
+      font-weight:800; letter-spacing:.3px; color:var(--text2);
+      display:flex; align-items:center; gap:8px;
+    }
+    .plantHead .name:before{
+      content:"";
+      width:10px;height:10px;border-radius:999px;
+      background: rgba(var(--u-rgb), .95);
+      box-shadow: 0 0 0 5px rgba(var(--u-rgb), .12), 0 0 18px rgba(var(--u-rgb), .18);
+      display:inline-block;
+    }
     .pill{
       font-size:12px;
       padding:5px 9px;
@@ -226,11 +311,18 @@
       color:var(--muted);
       white-space:nowrap;
     }
+    .pill.unit{
+      border-color: rgba(var(--u-rgb), .26);
+      background: rgba(var(--u-rgb), .10);
+      color: rgba(231,236,255,.92);
+    }
+
     .metrics{
       padding:11px 14px 12px;
       display:grid;
       grid-template-columns:1fr 1fr;
       gap:8px;
+      position:relative;
     }
     .metric{
       border-radius:14px;
@@ -239,8 +331,27 @@
       padding:9px 9px;
       min-height:60px;
     }
-    .metric .mLabel{ font-size:12px; color:var(--muted2); }
-    .metric .mVal{ margin-top:5px; font-weight:800; color:var(--text); }
+    .metric .mLabel{ font-size:12px; color:var(--muted2); display:flex; align-items:center; gap:6px; }
+    .metric .mLabel:before{
+      content:"";
+      width:7px;height:7px;border-radius:999px;
+      background: rgba(255,255,255,.22);
+      box-shadow: 0 0 0 4px rgba(255,255,255,.04);
+      display:inline-block;
+    }
+    .metric.u .mLabel:before{
+      background: rgba(var(--u-rgb), .90);
+      box-shadow: 0 0 0 4px rgba(var(--u-rgb), .10);
+    }
+    .metric .mVal{
+      margin-top:5px;
+      font-weight:900;
+      color:rgba(231,236,255,.92);
+    }
+    .metric.u .mVal{
+      color: rgba(var(--u-rgb), .98);
+      text-shadow: 0 0 16px rgba(var(--u-rgb), .16);
+    }
 
     .empty{ padding:18px 14px; font-size:13px; color:var(--muted); text-align:center; }
 
@@ -266,8 +377,8 @@
       padding:6px 10px;
       border-radius:999px;
       font-size:13px;
-      background:rgba(255,255,255,.02);
-      border:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.10);
     }
     .qDot{ width:9px; height:9px; border-radius:999px; display:inline-block; vertical-align:middle; }
     .qVe  .qDot{ background:rgba(var(--c-qve),.95); box-shadow:0 0 12px rgba(var(--c-qve),.12); }
@@ -276,8 +387,7 @@
     .qVe  .qLabel{ color:rgba(var(--c-qve),.92); font-weight:700; }
     .qChay .qLabel{ color:rgba(var(--c-qch),.92); font-weight:700; }
     .qXa  .qLabel{ color:rgba(var(--c-qxa),.92); font-weight:700; }
-
-    .qNum{ font-weight:800; margin-left:6px; }
+    .qNum{ font-weight:900; margin-left:6px; text-shadow: 0 0 16px rgba(255,255,255,.08); }
   </style>
 </head>
 
@@ -291,7 +401,7 @@
           </h1>
           <small>Mặc định hiển thị D-1 • Lũy kế Tháng &amp; Năm • Biểu đồ Q về + Q chạy máy</small>
         </div>
-        <span class="chip version">v2.0</span>
+        <span class="chip version">v2.3</span>
       </div>
     </div>
 
@@ -321,7 +431,7 @@
           </div>
         </div>
         <div class="hint">
-          Dữ liệu lấy từ bảng <span class="mono">report_days</span> &amp; <span class="mono">report_units</span> trên Supabase.
+          Dữ liệu lấy từ bảng <span class="mono">report_days</span>, <span class="mono">report_units</span> &amp; <span class="mono">power_hourly</span> trên Supabase.
         </div>
       </div>
     </section>
@@ -332,95 +442,104 @@
         <b>Thông tin tổng quan</b>
         <span class="chip" id="basicTitle">—</span>
       </div>
+
       <div class="cardBody">
-        <!-- H1 / H2 / Tổng ngày -->
+        <!-- NHÓM 1: Sản lượng ngày -->
         <div class="grid3">
-          <div class="kpi">
+          <div class="kpi g1" data-g="g1">
             <div class="label">Sản lượng H1 (kWh)</div>
             <div class="value" id="eH1">—</div>
             <div class="sub" id="eH1Sub">—</div>
           </div>
-          <div class="kpi">
+
+          <div class="kpi g2" data-g="g2">
             <div class="label">Sản lượng H2 (kWh)</div>
             <div class="value" id="eH2">—</div>
             <div class="sub" id="eH2Sub">—</div>
           </div>
-          <div class="kpi">
+
+          <div class="kpi g3" data-g="g3">
             <div class="label">Tổng sản lượng ngày (kWh)</div>
             <div class="value" id="eSum">—</div>
             <div class="sub" id="eSumSub">H1 + H2</div>
           </div>
         </div>
 
-        <!-- Lũy kế tháng / năm -->
+        <!-- NHÓM 2: Lũy kế tháng / năm -->
         <div class="grid2" style="margin-top:10px;">
-          <div class="kpi">
+          <div class="kpi g3" data-g="g3">
             <div class="label">Lũy kế tháng (kWh)</div>
             <div class="value" id="eMonthTotal">—</div>
-            <div class="sub" id="eMonthSub">H1 / H2</div>
+            <div class="sub" id="eMonthSub">—</div>
           </div>
-          <div class="kpi">
+
+          <div class="kpi g3" data-g="g3">
             <div class="label">Lũy kế năm (kWh)</div>
             <div class="value" id="eYearTotal">—</div>
-            <div class="sub" id="eYearSub">H1 / H2</div>
+            <div class="sub" id="eYearSub">—</div>
           </div>
         </div>
 
-        <!-- SL đăng ký, NSMO huy động, QC tháng (tổng H1+H2) -->
+        <!-- NHÓM 3: SL đăng ký / A0 / QC -->
         <div class="grid3" style="margin-top:10px;">
-          <div class="kpi">
+          <div class="kpi g3" data-g="g3">
             <div class="label">SL đăng ký (kWh)</div>
             <div class="value" id="slKeHoach">—</div>
             <div class="sub" id="slKeHoachSub">Tổng H1 + H2</div>
           </div>
-          <div class="kpi">
+
+          <div class="kpi g3" data-g="g3">
             <div class="label">NSMO dự kiến huy động (kWh)</div>
             <div class="value" id="slA0">—</div>
             <div class="sub" id="slA0Sub">Tổng H1 + H2</div>
           </div>
-          <div class="kpi">
+
+          <div class="kpi g3" data-g="g3">
             <div class="label">QC tháng (kWh)</div>
             <div class="value" id="slQC">—</div>
             <div class="sub" id="slQCSub">Tổng H1 + H2</div>
           </div>
         </div>
 
-        <!-- Điện tự dùng + Tỷ lệ -->
+        <!-- NHÓM 4: Điện tự dùng / tỷ lệ -->
         <div class="grid2" style="margin-top:10px;">
-          <div class="kpi">
+          <div class="kpi g3" data-g="g3">
             <div class="label">Điện tự dùng (kWh)</div>
             <div class="value" id="eSelfTotal">—</div>
-            <div class="sub" id="eSelfSub">H1 / H2</div>
+            <div class="sub" id="eSelfSub">—</div>
           </div>
-          <div class="kpi">
+
+          <div class="kpi g5" data-g="g5">
             <div class="label">Tỷ lệ điện tự dùng ngày(%)</div>
             <div class="value" id="selfRatio">—</div>
             <div class="sub" id="selfRatioSub">Trên tổng sản lượng ngày</div>
           </div>
         </div>
 
-        <!-- MNH & Q -->
+        <!-- NHÓM 5: MNH & Q -->
         <div class="grid2" style="margin-top:10px;">
-          <div class="kpi">
+          <div class="kpi g4" data-g="g4">
             <div class="label">MNH (m)</div>
             <div class="value" id="basicMNH">—</div>
             <div class="sub" id="basicMNHSub">Mực nước hồ / MNH QT / NSMO</div>
           </div>
-          <div class="kpi">
+
+          <div class="kpi g5" data-g="g5">
             <div class="label">Q (m³/s)</div>
             <div class="value" id="basicQ">—</div>
             <div class="sub" id="basicQSub">Q về / Q chạy / Q xả</div>
           </div>
         </div>
 
-        <!-- Mưa & Phiếu công tác -->
+        <!-- Mưa & PCT -->
         <div class="grid2" style="margin-top:10px;">
-          <div class="kpi">
+          <div class="kpi g5" data-g="g5">
             <div class="label">Mưa &amp; phương thức AC</div>
             <div class="value" id="rainValue">—</div>
             <div class="sub" id="rainSub">Mưa ngày / Mưa năm • Phương thức</div>
           </div>
-          <div class="kpi">
+
+          <div class="kpi g5" data-g="g5">
             <div class="label">Số phiếu công tác</div>
             <div class="value" id="workValue">—</div>
             <div class="sub" id="workSub">Đã cấp • Đã khóa</div>
@@ -445,12 +564,17 @@
           <span class="tab" data-m="runtime">
             <span class="swatch" style="background:rgba(var(--c-run),.9)"></span> T chạy máy
           </span>
-          <span class="tab" data-m="P_H1">
-            <span class="swatch" style="background:rgba(var(--c-ph1),.9)"></span> P_H1
+
+          <span class="tab" data-m="H1_24">
+            <span class="swatch" style="background:rgba(var(--c-h1p),.9)"></span> H1 (24h)
           </span>
-          <span class="tab" data-m="P_H2">
-            <span class="swatch" style="background:rgba(var(--c-ph2),.9)"></span> P_H2
+          <span class="tab" data-m="H2_24">
+            <span class="swatch" style="background:rgba(var(--c-h2p),.9)"></span> H2 (24h)
           </span>
+          <span class="tab" data-m="A0_24">
+            <span class="swatch" style="background:rgba(var(--c-a0p),.9)"></span> NSMO (24h)
+          </span>
+
           <span class="tab" data-m="MNH_7D">
             <span class="swatch" style="background:rgba(var(--c-mnh),.9)"></span> MNH (D-7→D-1)
           </span>
@@ -461,7 +585,7 @@
       </div>
       <div class="cardBody">
         <div class="hint" id="tabHint">
-          Mặc định: so sánh Sản lượng (kWh) H1 vs H2 trong ngày. Tab Q sẽ hiển thị Q về + Q chạy máy + Q xả.
+          Mặc định: so sánh Sản lượng (kWh) H1 vs H2 trong ngày. Biểu đồ H1/H2/NSMO (24h) lấy từ bảng power_hourly.
         </div>
       </div>
     </section>
@@ -502,8 +626,6 @@ window.addEventListener("error", (e) => {
   console.log("Global JS error:", e.message, e);
 });
 
-console.log("Dashboard script started");
-
 // ======================= SUPABASE CONFIG =======================
 const SUPABASE_URL = "https://upicvbecjmzkfgoawupo.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwaWN2YmVjam16a2Znb2F3dXBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNTAzMTEsImV4cCI6MjA4MDkyNjMxMX0.3pVGVnP_OjkwLCvoVQzK7xaJRUaiFzJfopzUvPsWwXE";
@@ -515,7 +637,6 @@ function getSupabase() {
       throw new Error("Supabase JS chưa load (window.supabase null)");
     }
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log("Supabase client created");
   }
   return supabaseClient;
 }
@@ -561,18 +682,19 @@ function getDMinus1ISO(){
 const tabMeta = {
   energy:  { name:"Sản lượng",      hint:"So sánh Sản lượng (kWh) H1 vs H2 trong ngày.",               color:"--c-prod" },
   runtime: { name:"T chạy máy",     hint:"So sánh T chạy máy (h) H1 vs H2 trong ngày.",                color:"--c-run" },
-  P_H1:    { name:"P_H1",           hint:"Pmin & Pmax tổ máy H1 trong ngày.",                          color:"--c-ph1" },
-  P_H2:    { name:"P_H2",           hint:"Pmin & Pmax tổ máy H2 trong ngày.",                          color:"--c-ph2" },
+  H1_24:   { name:"H1 (24h)",       hint:"Biểu đồ công suất 24h của H1 (MW) trong ngày.",              color:"--c-h1p" },
+  H2_24:   { name:"H2 (24h)",       hint:"Biểu đồ công suất 24h của H2 (MW) trong ngày.",              color:"--c-h2p" },
+  A0_24:   { name:"NSMO (24h)",     hint:"Biểu đồ công suất 24h NSMO (MW) trong ngày.",                  color:"--c-a0p" },
   MNH_7D:  { name:"MNH (D-7→D-1)",  hint:"Biểu đồ MNH (mực nước hồ) từ D-7 đến D-1.",                  color:"--c-mnh" },
   Q_7D:    { name:"Q (D-7→D-1)",    hint:"Biểu đồ Q về, Q chạy và Q xả (m³/s) D-7 → D-1.",             color:"--c-qch" }
 };
 
-function metricBox(label, value){
+function metricBox(label, value, cls=""){
   const n = Number(value);
   const v = (value===null || value===undefined || value==="") ? "—" :
             (Number.isFinite(n) ? fmt.format(n) : String(value));
   return `
-    <div class="metric">
+    <div class="metric ${cls}">
       <div class="mLabel">${label}</div>
       <div class="mVal">${v}</div>
     </div>
@@ -621,6 +743,18 @@ async function fetchRange(dayISO){
   return data || [];
 }
 
+async function fetchPowerHourly(dayISO){
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from("power_hourly")
+    .select("hour,source,power_mw")
+    .eq("report_date", dayISO)
+    .order("hour", { ascending:true });
+
+  if (error) throw error;
+  return data || [];
+}
+
 function getUnit(units, code){
   return units.find(u=>u.unit_code === code) || null;
 }
@@ -653,12 +787,14 @@ function renderCommon(dayISO, day, h1, h2){
   const ySum = (Number.isFinite(y1)?y1:0) + (Number.isFinite(y2)?y2:0);
 
   $("eMonthTotal").textContent = mSum>0 ? fmt0.format(mSum) : "—";
-  $("eMonthSub").textContent   =
-    `H1: ${Number.isFinite(m1)?fmt0.format(m1):"—"} • H2: ${Number.isFinite(m2)?fmt0.format(m2):"—"}`;
+  $("eMonthSub").innerHTML =
+    `H1: <span class="h1v">${Number.isFinite(m1)?fmt0.format(m1):"—"}</span> • `+
+    `H2: <span class="h2v">${Number.isFinite(m2)?fmt0.format(m2):"—"}</span>`;
 
   $("eYearTotal").textContent  = ySum>0 ? fmt0.format(ySum) : "—";
-  $("eYearSub").textContent    =
-    `H1: ${Number.isFinite(y1)?fmt0.format(y1):"—"} • H2: ${Number.isFinite(y2)?fmt0.format(y2):"—"}`;
+  $("eYearSub").innerHTML =
+    `H1: <span class="h1v">${Number.isFinite(y1)?fmt0.format(y1):"—"}</span> • `+
+    `H2: <span class="h2v">${Number.isFinite(y2)?fmt0.format(y2):"—"}</span>`;
 
   // --- SL đăng ký, A0, QC tổng H1+H2 ---
   const k1 = Number(h1?.sl_ke_hoach);
@@ -676,8 +812,7 @@ function renderCommon(dayISO, day, h1, h2){
   $("slA0").textContent      = (slA0>0) ? fmt0.format(slA0) : "—";
   $("slQC").textContent      = (slQc>0) ? fmt0.format(slQc) : "—";
 
-  // --- ĐIỆN TỰ DÙNG (mapping chuẩn theo report_days) ---
-  // td_h1, td_h2, td_tong, td_tyle
+  // --- ĐIỆN TỰ DÙNG ---
   const s1 = Number(day?.td_h1);
   const s2 = Number(day?.td_h2);
   let sTotal = Number(day?.td_tong);
@@ -687,14 +822,15 @@ function renderCommon(dayISO, day, h1, h2){
 
   const hasSelf = sTotal > 0;
   $("eSelfTotal").textContent = hasSelf ? fmt0.format(sTotal) : "—";
-  $("eSelfSub").textContent =
-    `H1: ${Number.isFinite(s1)?fmt0.format(s1):"—"} • H2: ${Number.isFinite(s2)?fmt0.format(s2):"—"}`;
+  $("eSelfSub").innerHTML =
+    `H1: <span class="h1v">${Number.isFinite(s1)?fmt0.format(s1):"—"}</span> • `+
+    `H2: <span class="h2v">${Number.isFinite(s2)?fmt0.format(s2):"—"}</span>`;
 
   const ratio = Number(day?.td_tyle);
   $("selfRatio").textContent = Number.isFinite(ratio) ? fmt.format(ratio) : "—";
   $("selfRatioSub").textContent = "Trên tổng sản lượng ngày";
 
-  // --- MNH + MỰC NƯỚC ---
+  // --- MNH ---
   const wl   = day?.water_level;
   const mnh  = day?.mnh_qt;
   const nsmo = day?.nsmo_tuan;
@@ -703,7 +839,7 @@ function renderCommon(dayISO, day, h1, h2){
     [wl,mnh,nsmo].map(v=>v==null?"—":fmt.format(v)).join(" / ");
   $("basicMNHSub").textContent = "Mực nước hồ / MNH QT / NSMO";
 
-  // --- Q VỀ / Q CHẠY / Q XẢ ---
+  // --- Q ---
   const qv = day?.q_ve_tb;
   const qc = day?.q_chay_tb;
   const qx = day?.q_xa;
@@ -728,7 +864,7 @@ function renderCommon(dayISO, day, h1, h2){
   }
   $("basicQSub").textContent = "Q về / Q chạy / Q xả";
 
-  // --- MƯA & PHƯƠNG THỨC AC (report_days: rain_day, rain_year, phuong_thuc_ac) ---
+  // --- MƯA & PHƯƠNG THỨC ---
   const rainDay  = day?.rain_day;
   const rainYear = day?.rain_year;
   const rainStr =
@@ -739,7 +875,7 @@ function renderCommon(dayISO, day, h1, h2){
   const phuongThuc = day?.phuong_thuc_ac || "—";
   $("rainSub").textContent = `Mưa ngày / Mưa năm • Phương thức: ${phuongThuc}`;
 
-  // --- SỐ PHIẾU CÔNG TÁC + PCT ---
+  // --- PCT/phiếu công tác ---
   const workCount = day?.so_phieu_cong_tac;
   $("workValue").textContent = workCount!=null ? String(workCount) : "—";
 
@@ -757,24 +893,29 @@ function renderCommon(dayISO, day, h1, h2){
 
 function renderPlantCard(u){
   if(!u) return "";
+
+  const unit = String(u.unit_code || "").toUpperCase();
+  const cls = unit === "H1" ? "h1" : (unit === "H2" ? "h2" : "");
+  const labelEnergy = "Sản lượng (kWh)";
+
   return `
-    <div class="plantCard" style="margin-top:10px;">
+    <div class="plantCard ${cls}" style="margin-top:10px;">
       <div class="plantHead">
-        <div class="name">🏭 ${u.unit_code}</div>
-        <span class="pill mono">${u.report_date}</span>
+        <div class="name">🏭 ${unit}</div>
+        <span class="pill unit mono">${u.report_date}</span>
       </div>
       <div class="metrics">
-        ${metricBox("Sản lượng (kWh)",      u.sl_thuc_phat ?? u.energy_kwh)}
-        ${metricBox("T chạy (h)",           u.t_run)}
-        ${metricBox("Pmax (MW)",            u.p_max)}
-        ${metricBox("Pmin (MW)",            u.p_min)}
-        ${metricBox("AVC giao (kWh)",       u.avc_giao)}
-        ${metricBox("AVC nhận (kWh)",       u.avc_nhan)}
-        ${metricBox("Lũy kế tháng (kWh)",   u.lk_thang_kwh)}
-        ${metricBox("Lũy kế năm (kWh)",     u.lk_nam_kwh)}
-        ${metricBox("Khởi động ngày",       u.start_today)}
-        ${metricBox("Khởi động lũy tháng",  u.start_month)}
-        ${metricBox("Khởi động lũy năm",    u.start_year)}
+        ${metricBox(labelEnergy,              u.sl_thuc_phat ?? u.energy_kwh, "u")}
+        ${metricBox("T chạy (h)",            u.t_run, "u")}
+        ${metricBox("Pmax (MW)",             u.p_max, "u")}
+        ${metricBox("Pmin (MW)",             u.p_min, "u")}
+        ${metricBox("AVC giao (kWh)",        u.avc_giao, "u")}
+        ${metricBox("AVC nhận (kWh)",        u.avc_nhan, "u")}
+        ${metricBox("Lũy kế tháng (kWh)",    u.lk_thang_kwh, "u")}
+        ${metricBox("Lũy kế năm (kWh)",      u.lk_nam_kwh, "u")}
+        ${metricBox("Khởi động ngày",        u.start_today, "u")}
+        ${metricBox("Khởi động lũy tháng",   u.start_month, "u")}
+        ${metricBox("Khởi động lũy năm",     u.start_year, "u")}
       </div>
     </div>
   `;
@@ -783,7 +924,12 @@ function renderPlantCard(u){
 // ======================= CHARTS =======================
 let currentTab     = "energy";
 let chartInstance  = null;
-let cache          = { dayISO:null, day:null, units:null, rangeISO:null, rangeRows:null };
+
+let cache = {
+  dayISO:null, day:null, units:null,
+  rangeISO:null, rangeRows:null,
+  powerISO:null, powerRows:null
+};
 
 function safeDestroyChart(){
   if(chartInstance && typeof chartInstance.destroy === "function"){
@@ -847,33 +993,16 @@ function chartCompareH1H2(dayISO, h1, h2, field, label, rgb){
   });
 }
 
-function chartPMinMax(dayISO, unitLabel, u, rgb){
-  const pmin = u ? Number(u.p_min) : null;
-  const pmax = u ? Number(u.p_max) : null;
-
-  $("metricName").textContent = unitLabel;
-  $("chartHint").textContent  = `Pmin & Pmax của ${unitLabel} (ngày ${dayISO}).`;
-
-  makeChart({
-    type:"bar",
-    data:{
-      labels:["P min","P max"],
-      datasets:[{
-        label:unitLabel,
-        data:[Number.isFinite(pmin)?pmin:null, Number.isFinite(pmax)?pmax:null],
-        borderWidth:1.5,
-        backgroundColor:[rgba(rgb,.28), rgba(rgb,.38)],
-        borderColor:[rgba(rgb,.8),  rgba(rgb,.95)]
-      }]
-    },
-    options:commonChartOptions()
-  });
-}
-
 async function ensureRangeLoaded(dayISO){
   if(cache.rangeISO === dayISO && cache.rangeRows) return;
   cache.rangeRows = await fetchRange(dayISO);
   cache.rangeISO  = dayISO;
+}
+
+async function ensurePowerLoaded(dayISO){
+  if(cache.powerISO === dayISO && cache.powerRows) return;
+  cache.powerRows = await fetchPowerHourly(dayISO);
+  cache.powerISO  = dayISO;
 }
 
 function chartMNH(rows){
@@ -921,18 +1050,9 @@ function chartQ(rows){
   const rgbXa = cssRGB("--c-qxa");
 
   const labels = rows.map(r=>r.report_date);
-  const dataVe = rows.map(r => {
-    const n = Number(r.q_ve_tb);
-    return Number.isFinite(n)?n:null;
-  });
-  const dataCh = rows.map(r => {
-    const n = Number(r.q_chay_tb);
-    return Number.isFinite(n)?n:null;
-  });
-  const dataXa = rows.map(r => {
-    const n = Number(r.q_xa);
-    return Number.isFinite(n)?n:null;
-  });
+  const dataVe = rows.map(r => Number.isFinite(Number(r.q_ve_tb)) ? Number(r.q_ve_tb) : null);
+  const dataCh = rows.map(r => Number.isFinite(Number(r.q_chay_tb)) ? Number(r.q_chay_tb) : null);
+  const dataXa = rows.map(r => Number.isFinite(Number(r.q_xa)) ? Number(r.q_xa) : null);
 
   $("metricName").textContent = tabMeta[currentTab].name;
   $("chartHint").textContent  = "Q về, Q chạy máy & Q xả (m³/s) • Xu hướng D-7 → D-1.";
@@ -949,43 +1069,58 @@ function chartQ(rows){
     data:{
       labels,
       datasets:[
-        {
-          label:"Q về (m³/s)",
-          data:dataVe,
-          spanGaps:true,
-          tension:.35,
-          borderWidth:2,
-          borderColor:rgba(rgbVe,.96),
-          backgroundColor:rgba(rgbVe,.18),
-          pointRadius:3,
-          pointHoverRadius:6,
-          fill:true
+        { label:"Q về (m³/s)", data:dataVe, spanGaps:true, tension:.35, borderWidth:2,
+          borderColor:rgba(rgbVe,.96), backgroundColor:rgba(rgbVe,.18), pointRadius:3, pointHoverRadius:6, fill:true
         },
-        {
-          label:"Q chạy máy (m³/s)",
-          data:dataCh,
-          spanGaps:true,
-          tension:.35,
-          borderWidth:2,
-          borderColor:rgba(rgbCh,.96),
-          backgroundColor:rgba(rgbCh,.18),
-          pointRadius:3,
-          pointHoverRadius:6,
-          fill:true
+        { label:"Q chạy máy (m³/s)", data:dataCh, spanGaps:true, tension:.35, borderWidth:2,
+          borderColor:rgba(rgbCh,.96), backgroundColor:rgba(rgbCh,.18), pointRadius:3, pointHoverRadius:6, fill:true
         },
-        {
-          label:"Q xả (m³/s)",
-          data:dataXa,
-          spanGaps:true,
-          tension:.35,
-          borderWidth:2,
-          borderColor:rgba(rgbXa,.96),
-          backgroundColor:rgba(rgbXa,.18),
-          pointRadius:3,
-          pointHoverRadius:6,
-          fill:true
+        { label:"Q xả (m³/s)", data:dataXa, spanGaps:true, tension:.35, borderWidth:2,
+          borderColor:rgba(rgbXa,.96), backgroundColor:rgba(rgbXa,.18), pointRadius:3, pointHoverRadius:6, fill:true
         }
       ]
+    },
+    options:opts
+  });
+}
+
+function chartPower24(dayISO, powerRows, source, seriesLabel, rgb){
+  const labels = Array.from({length:24}, (_,i)=> String(i+1));
+  const byHour = new Map();
+  for (const r of powerRows){
+    if (String(r.source).toUpperCase() !== source) continue;
+    const h = Number(r.hour);
+    const v = Number(r.power_mw);
+    if (Number.isFinite(h) && h>=1 && h<=24) byHour.set(h, Number.isFinite(v) ? v : null);
+  }
+  const data = labels.map((_,i)=> byHour.get(i+1) ?? null);
+
+  $("metricName").textContent = tabMeta[currentTab].name;
+  $("chartHint").textContent  = `${seriesLabel} (MW) theo giờ • Ngày ${dayISO}.`;
+
+  const opts = commonChartOptions();
+  opts.plugins.tooltip.callbacks.label = (ctx)=>{
+    const v = ctx.parsed.y;
+    const t = Number.isFinite(v)?fmt.format(v):"—";
+    return ` ${seriesLabel}: ${t} MW`;
+  };
+
+  makeChart({
+    type:"line",
+    data:{
+      labels,
+      datasets:[{
+        label: seriesLabel + " (MW)",
+        data,
+        spanGaps:true,
+        tension:.32,
+        borderWidth:2,
+        borderColor:rgba(rgb,.95),
+        backgroundColor:rgba(rgb,.18),
+        pointRadius:3,
+        pointHoverRadius:6,
+        fill:true
+      }]
     },
     options:opts
   });
@@ -1004,12 +1139,23 @@ async function renderChart(dayISO, day, units){
   if(currentTab === "runtime"){
     return chartCompareH1H2(dayISO, h1, h2, "t_run", "T chạy máy (h)", rgb);
   }
-  if(currentTab === "P_H1"){
-    return chartPMinMax(dayISO, "P_H1", h1, rgb);
+
+  if(currentTab === "H1_24" || currentTab === "H2_24" || currentTab === "A0_24"){
+    await ensurePowerLoaded(dayISO);
+    const rows = cache.powerRows || [];
+
+    if(!rows.length){
+      $("metricName").textContent = tabMeta[currentTab].name;
+      $("chartHint").textContent = `Không có dữ liệu power_hourly cho ngày ${dayISO}.`;
+      safeDestroyChart();
+      return;
+    }
+
+    if(currentTab === "H1_24") return chartPower24(dayISO, rows, "H1", "H1", rgb);
+    if(currentTab === "H2_24") return chartPower24(dayISO, rows, "H2", "H2", rgb);
+    if(currentTab === "A0_24") return chartPower24(dayISO, rows, "A0", "A0", rgb);
   }
-  if(currentTab === "P_H2"){
-    return chartPMinMax(dayISO, "P_H2", h2, rgb);
-  }
+
   await ensureRangeLoaded(dayISO);
   const rows = cache.rangeRows || [];
   if(currentTab === "MNH_7D"){
@@ -1038,6 +1184,9 @@ async function loadDay(){
     cache.dayISO = dayISO;
     cache.day    = day;
     cache.units  = units;
+
+    cache.powerISO = null;
+    cache.powerRows = null;
 
     const h1 = getUnit(units,"H1");
     const h2 = getUnit(units,"H2");
@@ -1076,7 +1225,6 @@ async function loadDay(){
 
 // ======================= INIT =======================
 window.addEventListener("load", async ()=>{
-  console.log("window load fired");
   $("day").value = getDMinus1ISO();
   $("dateText").textContent = $("day").value;
 
@@ -1111,7 +1259,7 @@ $("metricTabs").addEventListener("click", async (e)=>{
   const dayISO = $("day").value;
   if(!dayISO) return;
   try{
-    if(cache.dayISO === dayISO && cache.day){
+    if(cache.dayISO === dayISO){
       await renderChart(dayISO, cache.day, cache.units || []);
     }else{
       await loadDay();
@@ -1137,4 +1285,3 @@ $("metricTabs").addEventListener("click", async (e)=>{
   </script>
 </body>
 </html>
-
