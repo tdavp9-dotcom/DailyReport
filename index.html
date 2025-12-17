@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Dashboard báo cáo sản xuất ngày • V2.3</title>
+  <title>Dashboard báo cáo sản xuất ngày • V2.4</title>
 
   <!-- PWA -->
   <meta name="theme-color" content="#050816" />
@@ -46,6 +46,10 @@
       --c-qve:  59,130,246;   /* H1 / Q về */
       --c-qch:  248,113,113;  /* H2 / Q chạy */
       --c-qxa:  251,191,36;   /* Tổng / Q xả */
+
+      /* Màu mưa (thêm) */
+      --c-rain:   59,130,246;   /* mưa thực đo */
+      --c-rainfc: 167,139,250;  /* mưa dự báo */
 
       --good:#34D399;
       --bad:#FB7185;
@@ -156,14 +160,20 @@
     .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 
     /* =========================
-       KPI GROUP COLORS (5 nhóm)
+       KPI GROUP COLORS (MỞ RỘNG)
        ========================= */
     :root{
-      --g1: var(--c-qve); /* Nhóm 1: H1 */
-      --g2: var(--c-qch); /* Nhóm 2: H2 */
-      --g3: var(--c-qxa); /* Nhóm 3: Tổng */
-      --g4: var(--c-mnh); /* Nhóm 4: MNH */
-      --g5: 167,139,250;  /* Nhóm 5: Khác */
+      --g1: var(--c-qve);     /* H1 */
+      --g2: var(--c-qch);     /* H2 */
+      --g3: var(--c-qxa);     /* Tổng */
+      --g4: var(--c-mnh);     /* MNH */
+      --g5: 167,139,250;      /* Tím */
+
+      /* MÀU KPI mới để tách khung SL/QC/NSMO/Năm cho chuyên nghiệp */
+      --g6: 52,211,153;       /* SL đăng ký - xanh ngọc */
+      --g7: 248,113,113;      /* NSMO dự kiến - đỏ hồng */
+      --g8: 251,191,36;       /* QC tháng - vàng */
+      --g9: 99,102,241;       /* Lũy kế năm - indigo */
     }
 
     .kpi{
@@ -218,7 +228,12 @@
     .kpi.g2{ --g-rgb: var(--g2); } /* H2 */
     .kpi.g3{ --g-rgb: var(--g3); } /* Tổng */
     .kpi.g4{ --g-rgb: var(--g4); } /* MNH */
-    .kpi.g5{ --g-rgb: var(--g5); } /* Khác */
+    .kpi.g5{ --g-rgb: var(--g5); } /* Tím */
+
+    .kpi.g6{ --g-rgb: var(--g6); } /* SL đăng ký */
+    .kpi.g7{ --g-rgb: var(--g7); } /* NSMO dự kiến */
+    .kpi.g8{ --g-rgb: var(--g8); } /* QC tháng */
+    .kpi.g9{ --g-rgb: var(--g9); } /* Lũy kế năm */
 
     .sub .h1v{ color: rgba(var(--c-qve), .95); font-weight:800; }
     .sub .h2v{ color: rgba(var(--c-qch), .95); font-weight:800; }
@@ -401,7 +416,7 @@
           </h1>
           <small>Mặc định hiển thị D-1 • Lũy kế Tháng &amp; Năm • Biểu đồ Q về + Q chạy máy</small>
         </div>
-        <span class="chip version">v2.3</span>
+        <span class="chip version">v2.4</span>
       </div>
     </div>
 
@@ -473,28 +488,29 @@
             <div class="sub" id="eMonthSub">—</div>
           </div>
 
-          <div class="kpi g3" data-g="g3">
+          <!-- ĐỔI MÀU: Lũy kế năm dùng g9 (indigo) -->
+          <div class="kpi g9" data-g="g9">
             <div class="label">Lũy kế năm (kWh)</div>
             <div class="value" id="eYearTotal">—</div>
             <div class="sub" id="eYearSub">—</div>
           </div>
         </div>
 
-        <!-- NHÓM 3: SL đăng ký / A0 / QC -->
+        <!-- NHÓM 3: SL đăng ký / A0 / QC (ĐỔI MÀU RIÊNG) -->
         <div class="grid3" style="margin-top:10px;">
-          <div class="kpi g3" data-g="g3">
+          <div class="kpi g6" data-g="g6">
             <div class="label">SL đăng ký (kWh)</div>
             <div class="value" id="slKeHoach">—</div>
             <div class="sub" id="slKeHoachSub">Tổng H1 + H2</div>
           </div>
 
-          <div class="kpi g3" data-g="g3">
+          <div class="kpi g7" data-g="g7">
             <div class="label">NSMO dự kiến huy động (kWh)</div>
             <div class="value" id="slA0">—</div>
             <div class="sub" id="slA0Sub">Tổng H1 + H2</div>
           </div>
 
-          <div class="kpi g3" data-g="g3">
+          <div class="kpi g8" data-g="g8">
             <div class="label">QC tháng (kWh)</div>
             <div class="value" id="slQC">—</div>
             <div class="sub" id="slQCSub">Tổng H1 + H2</div>
@@ -559,10 +575,10 @@
         <b>Chọn biểu đồ</b>
         <div class="tabs" id="metricTabs">
           <span class="tab active" data-m="energy">
-            <span class="swatch" style="background:rgba(var(--c-prod),.9)"></span> Sản lượng
+            <span class="swatch" style="background:rgba(var(--c-prod),.9)"></span> Sản lượng (10D)
           </span>
           <span class="tab" data-m="runtime">
-            <span class="swatch" style="background:rgba(var(--c-run),.9)"></span> T chạy máy
+            <span class="swatch" style="background:rgba(var(--c-run),.9)"></span> T chạy máy (10D)
           </span>
 
           <span class="tab" data-m="H1_24">
@@ -571,21 +587,39 @@
           <span class="tab" data-m="H2_24">
             <span class="swatch" style="background:rgba(var(--c-h2p),.9)"></span> H2 (24h)
           </span>
+
+          <span class="tab" data-m="POWER_MIX">
+            <span class="swatch" style="background:linear-gradient(135deg,rgba(var(--c-h1p),.9),rgba(var(--c-a0p),.9))"></span>
+            CS H1+H2 + NSMO (D-1)
+          </span>
+
           <span class="tab" data-m="A0_24">
             <span class="swatch" style="background:rgba(var(--c-a0p),.9)"></span> NSMO (24h)
           </span>
 
           <span class="tab" data-m="MNH_7D">
-            <span class="swatch" style="background:rgba(var(--c-mnh),.9)"></span> MNH (D-7→D-1)
+            <span class="swatch" style="background:rgba(var(--c-mnh),.9)"></span> MNH (7_Day)
           </span>
           <span class="tab" data-m="Q_7D">
-            <span class="swatch" style="background:linear-gradient(135deg,rgba(var(--c-qve),.9),rgba(var(--c-qch),.9))"></span> Q (D-7→D-1)
+            <span class="swatch" style="background:linear-gradient(135deg,rgba(var(--c-qve),.9),rgba(var(--c-qch),.9))"></span> Q (7_Day)
+          </span>
+
+          <!-- ✅ TAB MỚI: Mưa đồng bộ D-7 → D-1 -->
+          <span class="tab" data-m="RAIN_7D">
+            <span class="swatch" style="background:linear-gradient(135deg,rgba(var(--c-rain),.9),rgba(var(--c-rainfc),.9))"></span>
+            Mưa (D-7 → D-1)
+          </span>
+
+          <!-- ✅ TAB MỚI: Mưa dự báo D → D+6 -->
+          <span class="tab" data-m="RAIN_FC_7D">
+            <span class="swatch" style="background:rgba(var(--c-rainfc),.9)"></span>
+            Mưa dự báo (D → D+6)
           </span>
         </div>
       </div>
       <div class="cardBody">
         <div class="hint" id="tabHint">
-          Mặc định: so sánh Sản lượng (kWh) H1 vs H2 trong ngày. Biểu đồ H1/H2/NSMO (24h) lấy từ bảng power_hourly.
+          Mặc định: Sản lượng 10 ngày gần nhất (kWh). Biểu đồ H1/H2/NSMO (24h) lấy từ bảng power_hourly.
         </div>
       </div>
     </section>
@@ -680,13 +714,18 @@ function getDMinus1ISO(){
 }
 
 const tabMeta = {
-  energy:  { name:"Sản lượng",      hint:"So sánh Sản lượng (kWh) H1 vs H2 trong ngày.",               color:"--c-prod" },
-  runtime: { name:"T chạy máy",     hint:"So sánh T chạy máy (h) H1 vs H2 trong ngày.",                color:"--c-run" },
-  H1_24:   { name:"H1 (24h)",       hint:"Biểu đồ công suất 24h của H1 (MW) trong ngày.",              color:"--c-h1p" },
-  H2_24:   { name:"H2 (24h)",       hint:"Biểu đồ công suất 24h của H2 (MW) trong ngày.",              color:"--c-h2p" },
-  A0_24:   { name:"NSMO (24h)",     hint:"Biểu đồ công suất 24h NSMO (MW) trong ngày.",                  color:"--c-a0p" },
-  MNH_7D:  { name:"MNH (D-7→D-1)",  hint:"Biểu đồ MNH (mực nước hồ) từ D-7 đến D-1.",                  color:"--c-mnh" },
-  Q_7D:    { name:"Q (D-7→D-1)",    hint:"Biểu đồ Q về, Q chạy và Q xả (m³/s) D-7 → D-1.",             color:"--c-qch" }
+  energy:      { name:"Sản lượng (10D)",           hint:"Biểu đồ sản lượng 10 ngày gần nhất (kWh) H1 & H2.",                       color:"--c-prod" },
+  runtime:     { name:"T chạy máy (10D)",          hint:"Biểu đồ T chạy máy 10 ngày gần nhất (h) H1 & H2.",                        color:"--c-run" },
+  H1_24:       { name:"H1 (24h)",                  hint:"Biểu đồ công suất 24h của H1 (MW) trong ngày.",                           color:"--c-h1p" },
+  H2_24:       { name:"H2 (24h)",                  hint:"Biểu đồ công suất 24h của H2 (MW) trong ngày.",                           color:"--c-h2p" },
+  POWER_MIX:   { name:"CS H1+H2 + NSMO (D-1)",     hint:"Gộp công suất H1 + H2 và NSMO của D-1 trong 1 biểu đồ.",                  color:"--c-h1p" },
+  A0_24:       { name:"NSMO (24h)",                hint:"Biểu đồ công suất 24h NSMO (MW) trong ngày.",                             color:"--c-a0p" },
+  MNH_7D:      { name:"MNH (7_Day)",               hint:"Biểu đồ MNH từ D-7 đến D-1: MNH thực đo + MN quy trình + MNH NSMO.",      color:"--c-mnh" },
+  Q_7D:        { name:"Q (7_Day)",                 hint:"Biểu đồ Q về, Q chạy và Q xả (m³/s) D-7 → D-1.",                          color:"--c-qch" },
+
+  // ✅ Mưa mới
+  RAIN_7D:     { name:"Mưa (D-7 → D-1)",           hint:"Mưa thực tế (rain_day) và mưa dự báo (rain_dubao) đồng bộ D-7 → D-1.",    color:"--c-rain" },
+  RAIN_FC_7D:  { name:"Mưa dự báo (D → D+6)",      hint:"Mưa dự báo 7 ngày tới (rain_dubao) từ D → D+6.",                          color:"--c-rainfc" }
 };
 
 function metricBox(label, value, cls=""){
@@ -735,11 +774,38 @@ async function fetchRange(dayISO){
   const to   = dayISO;
   const { data, error } = await sb
     .from("report_days")
-    .select("report_date,q_ve_tb,q_chay_tb,q_xa,water_level")
+    .select("report_date,q_ve_tb,q_chay_tb,q_xa,water_level,mnh_qt,nsmo_tuan,rain_day,rain_dubao")
     .gte("report_date", from)
     .lte("report_date", to)
     .order("report_date", { ascending:true });
   if (error) throw error;
+  return data || [];
+}
+
+/* ✅ Range dự báo D → D+6 (lấy rain_dubao theo report_date tương lai) */
+async function fetchForecastRange(startISO, days=7){
+  const sb = getSupabase();
+  const to = addDaysISO(startISO, days-1); // D+6
+  const { data, error } = await sb
+    .from("report_days")
+    .select("report_date,rain_dubao")
+    .gte("report_date", startISO)
+    .lte("report_date", to)
+    .order("report_date", { ascending:true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function fetchUnitsRange(endISO, days=10){
+  const sb = getSupabase();
+  const from = addDaysISO(endISO, -(days-1));
+  const { data, error } = await sb
+    .from("report_units")
+    .select("report_date,unit_code,sl_thuc_phat,energy_kwh,t_run")
+    .gte("report_date", from)
+    .lte("report_date", endISO)
+    .order("report_date", { ascending:true });
+  if(error) throw error;
   return data || [];
 }
 
@@ -968,31 +1034,6 @@ function makeChart(config){
   chartInstance = new Chart(ctx, config);
 }
 
-function chartCompareH1H2(dayISO, h1, h2, field, label, rgb){
-  const v1src = h1 ? (field==="energy_kwh" ? (h1.sl_thuc_phat ?? h1.energy_kwh) : h1[field]) : null;
-  const v2src = h2 ? (field==="energy_kwh" ? (h2.sl_thuc_phat ?? h2.energy_kwh) : h2[field]) : null;
-  const v1 = Number(v1src);
-  const v2 = Number(v2src);
-
-  $("metricName").textContent = tabMeta[currentTab].name;
-  $("chartHint").textContent  = `${label} • So sánh H1 vs H2 (ngày ${dayISO}).`;
-
-  makeChart({
-    type:"bar",
-    data:{
-      labels:["H1","H2"],
-      datasets:[{
-        label,
-        data:[Number.isFinite(v1)?v1:null, Number.isFinite(v2)?v2:null],
-        borderWidth:1.5,
-        backgroundColor:[rgba(rgb,.35), rgba(rgb,.24)],
-        borderColor:[rgba(rgb,.95), rgba(rgb,.7)]
-      }]
-    },
-    options:commonChartOptions()
-  });
-}
-
 async function ensureRangeLoaded(dayISO){
   if(cache.rangeISO === dayISO && cache.rangeRows) return;
   cache.rangeRows = await fetchRange(dayISO);
@@ -1005,82 +1046,103 @@ async function ensurePowerLoaded(dayISO){
   cache.powerISO  = dayISO;
 }
 
-function chartMNH(rows){
-  const rgb    = cssRGB("--c-mnh");
-  const labels = rows.map(r=>r.report_date);
-  const data   = rows.map(r => {
-    const n = Number(r.water_level);
-    return Number.isFinite(n)?n:null;
+function chartEnergy10D(endISO, unitRows){
+  const rgbH1 = cssRGB("--c-qve");
+  const rgbH2 = cssRGB("--c-qch");
+
+  const days = [];
+  for(let i=9;i>=0;i--) days.push(addDaysISO(endISO, -i));
+
+  const map = new Map();
+  for(const r of unitRows){
+    map.set(`${r.report_date}|${String(r.unit_code).toUpperCase()}`, r);
+  }
+
+  const h1 = days.map(d=>{
+    const r = map.get(`${d}|H1`);
+    const v = Number(r?.sl_thuc_phat ?? r?.energy_kwh);
+    return Number.isFinite(v)?v:null;
+  });
+  const h2 = days.map(d=>{
+    const r = map.get(`${d}|H2`);
+    const v = Number(r?.sl_thuc_phat ?? r?.energy_kwh);
+    return Number.isFinite(v)?v:null;
   });
 
   $("metricName").textContent = tabMeta[currentTab].name;
-  $("chartHint").textContent  = "MNH (mực nước hồ) • Xu hướng D-7 → D-1.";
+  $("chartHint").textContent  = `Sản lượng 10 ngày gần nhất (kWh) • đến ${endISO}.`;
 
   const opts = commonChartOptions();
   opts.plugins.tooltip.callbacks.label = (ctx)=>{
     const v = ctx.parsed.y;
-    const t = Number.isFinite(v)?fmt.format(v):"—";
-    return ` MNH: ${t} m`;
+    const t = Number.isFinite(v)?fmt0.format(v):"—";
+    return ` ${ctx.dataset.label}: ${t} kWh`;
   };
 
   makeChart({
-    type:"line",
+    type:"bar",
     data:{
-      labels,
-      datasets:[{
-        label:"Mực nước hồ (m)",
-        data,
-        spanGaps:true,
-        tension:.35,
-        borderWidth:2,
-        borderColor:rgba(rgb,.96),
-        backgroundColor:rgba(rgb,.24),
-        pointRadius:3,
-        pointHoverRadius:6,
-        fill:true
-      }]
-    },
-    options:opts
-  });
-}
-
-function chartQ(rows){
-  const rgbVe = cssRGB("--c-qve");
-  const rgbCh = cssRGB("--c-qch");
-  const rgbXa = cssRGB("--c-qxa");
-
-  const labels = rows.map(r=>r.report_date);
-  const dataVe = rows.map(r => Number.isFinite(Number(r.q_ve_tb)) ? Number(r.q_ve_tb) : null);
-  const dataCh = rows.map(r => Number.isFinite(Number(r.q_chay_tb)) ? Number(r.q_chay_tb) : null);
-  const dataXa = rows.map(r => Number.isFinite(Number(r.q_xa)) ? Number(r.q_xa) : null);
-
-  $("metricName").textContent = tabMeta[currentTab].name;
-  $("chartHint").textContent  = "Q về, Q chạy máy & Q xả (m³/s) • Xu hướng D-7 → D-1.";
-
-  const opts = commonChartOptions();
-  opts.plugins.tooltip.callbacks.label = (ctx)=>{
-    const v = ctx.parsed.y;
-    const t = Number.isFinite(v)?fmt.format(v):"—";
-    return ` ${ctx.dataset.label}: ${t} m³/s`;
-  };
-
-  makeChart({
-    type:"line",
-    data:{
-      labels,
+      labels: days,
       datasets:[
-        { label:"Q về (m³/s)", data:dataVe, spanGaps:true, tension:.35, borderWidth:2,
-          borderColor:rgba(rgbVe,.96), backgroundColor:rgba(rgbVe,.18), pointRadius:3, pointHoverRadius:6, fill:true
+        { label:"H1 (kWh)", data:h1, borderWidth:1.2,
+          backgroundColor: rgba(rgbH1,.28), borderColor: rgba(rgbH1,.92)
         },
-        { label:"Q chạy máy (m³/s)", data:dataCh, spanGaps:true, tension:.35, borderWidth:2,
-          borderColor:rgba(rgbCh,.96), backgroundColor:rgba(rgbCh,.18), pointRadius:3, pointHoverRadius:6, fill:true
-        },
-        { label:"Q xả (m³/s)", data:dataXa, spanGaps:true, tension:.35, borderWidth:2,
-          borderColor:rgba(rgbXa,.96), backgroundColor:rgba(rgbXa,.18), pointRadius:3, pointHoverRadius:6, fill:true
+        { label:"H2 (kWh)", data:h2, borderWidth:1.2,
+          backgroundColor: rgba(rgbH2,.22), borderColor: rgba(rgbH2,.86)
         }
       ]
     },
-    options:opts
+    options: opts
+  });
+}
+
+function chartRuntime10D(endISO, unitRows){
+  const rgbH1 = cssRGB("--c-qve");
+  const rgbH2 = cssRGB("--c-qch");
+
+  const days = [];
+  for(let i=9;i>=0;i--) days.push(addDaysISO(endISO, -i));
+
+  const map = new Map();
+  for(const r of unitRows){
+    map.set(`${r.report_date}|${String(r.unit_code).toUpperCase()}`, r);
+  }
+
+  const h1 = days.map(d=>{
+    const r = map.get(`${d}|H1`);
+    const v = Number(r?.t_run);
+    return Number.isFinite(v)?v:null;
+  });
+  const h2 = days.map(d=>{
+    const r = map.get(`${d}|H2`);
+    const v = Number(r?.t_run);
+    return Number.isFinite(v)?v:null;
+  });
+
+  $("metricName").textContent = tabMeta[currentTab].name;
+  $("chartHint").textContent  = `T chạy máy 10 ngày gần nhất (h) • đến ${endISO}.`;
+
+  const opts = commonChartOptions();
+  opts.plugins.tooltip.callbacks.label = (ctx)=>{
+    const v = ctx.parsed.y;
+    const t = Number.isFinite(v)?fmt.format(v):"—";
+    return ` ${ctx.dataset.label}: ${t} h`;
+  };
+
+  makeChart({
+    type:"line",
+    data:{
+      labels: days,
+      datasets:[
+        { label:"H1 (h)", data:h1, spanGaps:true, tension:.32, borderWidth:2,
+          borderColor: rgba(rgbH1,.92), backgroundColor: rgba(rgbH1,.14), pointRadius:3, fill:true
+        },
+        { label:"H2 (h)", data:h2, spanGaps:true, tension:.32, borderWidth:2,
+          borderColor: rgba(rgbH2,.86), backgroundColor: rgba(rgbH2,.12), pointRadius:3, fill:true
+        }
+      ]
+    },
+    options: opts
   });
 }
 
@@ -1126,44 +1188,265 @@ function chartPower24(dayISO, powerRows, source, seriesLabel, rgb){
   });
 }
 
-async function renderChart(dayISO, day, units){
-  const h1   = getUnit(units,"H1");
-  const h2   = getUnit(units,"H2");
+async function chartPowerMix(dayISO){
+  const d1 = dayISO;                 // D-1 (ngày đang chọn)
+  const d2 = addDaysISO(dayISO, -1); // D-2
+
+  const [rowsD1, rowsD2] = await Promise.all([
+    fetchPowerHourly(d1),
+    fetchPowerHourly(d2)
+  ]);
+
+  const labels = Array.from({length:24}, (_,i)=> String(i+1));
+
+  const pick = (rows, source)=>{
+    const byHour = new Map();
+    for(const r of rows){
+      if(String(r.source).toUpperCase() !== source) continue;
+      const h = Number(r.hour);
+      const v = Number(r.power_mw);
+      if (Number.isFinite(h) && h>=1 && h<=24) byHour.set(h, Number.isFinite(v)?v:null);
+    }
+    return labels.map((_,i)=> byHour.get(i+1) ?? null);
+  };
+
+  const rgbH1 = cssRGB("--c-h1p");
+  const rgbH2 = cssRGB("--c-h2p");
+  const rgbA0 = cssRGB("--c-a0p");
+
+  const dataH1 = pick(rowsD1, "H1");
+  const dataH2 = pick(rowsD1, "H2");
+  const dataA0 = pick(rowsD2, "A0");
+
+  $("metricName").textContent = tabMeta[currentTab].name;
+  $("chartHint").textContent  = `H1/H2 theo giờ (ngày ${d1}) + A0 theo giờ (ngày ${d2}).`;
+
+  const opts = commonChartOptions();
+  opts.plugins.tooltip.callbacks.label = (ctx)=>{
+    const v = ctx.parsed.y;
+    const t = Number.isFinite(v)?fmt.format(v):"—";
+    return ` ${ctx.dataset.label}: ${t} MW`;
+  };
+
+  makeChart({
+    type:"line",
+    data:{
+      labels,
+      datasets:[
+        { label:`H1 (MW) • ${d1}`, data:dataH1, spanGaps:true, tension:.32, borderWidth:2,
+          borderColor: rgba(rgbH1,.92), backgroundColor: rgba(rgbH1,.14), pointRadius:2, fill:true
+        },
+        { label:`H2 (MW) • ${d1}`, data:dataH2, spanGaps:true, tension:.32, borderWidth:2,
+          borderColor: rgba(rgbH2,.88), backgroundColor: rgba(rgbH2,.12), pointRadius:2, fill:true
+        },
+        { label:`A0 (MW) • ${d2}`, data:dataA0, spanGaps:true, tension:.32, borderWidth:2,
+          borderColor: rgba(rgbA0,.90), backgroundColor: rgba(rgbA0,.10), pointRadius:2, fill:true
+        }
+      ]
+    },
+    options: opts
+  });
+}
+
+function chartMNH(rows){
+  const rgbWL   = cssRGB("--c-mnh");  // MNH thực đo
+  const rgbQT   = cssRGB("--c-qxa");  // MN quy trình
+  const rgbNSMO = cssRGB("--c-a0p");  // MNH NSMO
+
+  const labels = rows.map(r=>r.report_date);
+
+  const wl = rows.map(r => Number.isFinite(Number(r.water_level)) ? Number(r.water_level) : null);
+  const qt = rows.map(r => Number.isFinite(Number(r.mnh_qt))      ? Number(r.mnh_qt)      : null);
+  const ns = rows.map(r => Number.isFinite(Number(r.nsmo_tuan))   ? Number(r.nsmo_tuan)   : null);
+
+  $("metricName").textContent = tabMeta[currentTab].name;
+  $("chartHint").textContent  = "MNH / MN quy trình / MNH NSMO • Xu hướng D-7 → D-1.";
+
+  const opts = commonChartOptions();
+  opts.plugins.tooltip.callbacks.label = (ctx)=>{
+    const v = ctx.parsed.y;
+    const t = Number.isFinite(v)?fmt.format(v):"—";
+    return ` ${ctx.dataset.label}: ${t} m`;
+  };
+
+  makeChart({
+    type:"line",
+    data:{
+      labels,
+      datasets:[
+        { label:"MNH thực đo (m)", data:wl, spanGaps:true, tension:.35, borderWidth:2,
+          borderColor:rgba(rgbWL,.96), backgroundColor:rgba(rgbWL,.18), pointRadius:3, pointHoverRadius:6, fill:true
+        },
+        { label:"MN quy trình (m)", data:qt, spanGaps:true, tension:.35, borderWidth:2,
+          borderColor:rgba(rgbQT,.90), backgroundColor:rgba(rgbQT,.10), pointRadius:2, pointHoverRadius:5, fill:false
+        },
+        { label:"MNH NSMO (m)", data:ns, spanGaps:true, tension:.35, borderWidth:2,
+          borderColor:rgba(rgbNSMO,.92), backgroundColor:rgba(rgbNSMO,.08), pointRadius:2, pointHoverRadius:5, fill:false
+        }
+      ]
+    },
+    options:opts
+  });
+}
+
+function chartQ(rows){
+  const rgbVe = cssRGB("--c-qve");
+  const rgbCh = cssRGB("--c-qch");
+  const rgbXa = cssRGB("--c-qxa");
+
+  const labels = rows.map(r=>r.report_date);
+  const dataVe = rows.map(r => Number.isFinite(Number(r.q_ve_tb)) ? Number(r.q_ve_tb) : null);
+  const dataCh = rows.map(r => Number.isFinite(Number(r.q_chay_tb)) ? Number(r.q_chay_tb) : null);
+  const dataXa = rows.map(r => Number.isFinite(Number(r.q_xa)) ? Number(r.q_xa) : null);
+
+  $("metricName").textContent = tabMeta[currentTab].name;
+  $("chartHint").textContent  = "Q về, Q chạy máy & Q xả (m³/s) • Xu hướng D-7 → D-1.";
+
+  const opts = commonChartOptions();
+  opts.plugins.tooltip.callbacks.label = (ctx)=>{
+    const v = ctx.parsed.y;
+    const t = Number.isFinite(v)?fmt.format(v):"—";
+    return ` ${ctx.dataset.label}: ${t} m³/s`;
+  };
+
+  makeChart({
+    type:"line",
+    data:{
+      labels,
+      datasets:[
+        { label:"Q về (m³/s)", data:dataVe, spanGaps:true, tension:.35, borderWidth:2,
+          borderColor:rgba(rgbVe,.96), backgroundColor:rgba(rgbVe,.18), pointRadius:3, pointHoverRadius:6, fill:true
+        },
+        { label:"Q chạy máy (m³/s)", data:dataCh, spanGaps:true, tension:.35, borderWidth:2,
+          borderColor:rgba(rgbCh,.96), backgroundColor:rgba(rgbCh,.18), pointRadius:3, pointHoverRadius:6, fill:true
+        },
+        { label:"Q xả (m³/s)", data:dataXa, spanGaps:true, tension:.35, borderWidth:2,
+          borderColor:rgba(rgbXa,.96), backgroundColor:rgba(rgbXa,.18), pointRadius:3, pointHoverRadius:6, fill:true
+        }
+      ]
+    },
+    options:opts
+  });
+}
+
+/* ✅ Biểu đồ mưa D-7 → D-1: rain_day + rain_dubao */
+function chartRainSync(rows, endISO){
+  const rgbDay = cssRGB("--c-rain");
+  const rgbFc  = cssRGB("--c-rainfc");
+
+  const labels = rows.map(r=>r.report_date);
+  const rainDay = rows.map(r => Number.isFinite(Number(r.rain_day)) ? Number(r.rain_day) : null);
+  const rainFc  = rows.map(r => Number.isFinite(Number(r.rain_dubao)) ? Number(r.rain_dubao) : null);
+
+  $("metricName").textContent = tabMeta[currentTab].name;
+  $("chartHint").textContent  = `Mưa thực tế (rain_day) và dự báo (rain_dubao) • D-7 → D-1 • đến ${endISO}.`;
+
+  const opts = commonChartOptions();
+  opts.plugins.tooltip.callbacks.label = (ctx)=>{
+    const v = ctx.parsed.y;
+    const t = Number.isFinite(v)?fmt.format(v):"—";
+    return ` ${ctx.dataset.label}: ${t} mm`;
+  };
+
+  makeChart({
+    type:"bar",
+    data:{
+      labels,
+      datasets:[
+        { label:"Mưa ngày (mm)", data:rainDay, borderWidth:1.2,
+          backgroundColor: rgba(rgbDay,.26), borderColor: rgba(rgbDay,.92)
+        },
+        { label:"Mưa dự báo (mm)", data:rainFc, borderWidth:1.2,
+          backgroundColor: rgba(rgbFc,.20), borderColor: rgba(rgbFc,.88)
+        }
+      ]
+    },
+    options: opts
+  });
+}
+
+/* ✅ Biểu đồ mưa dự báo D → D+6: rain_dubao */
+function chartRainForecast(rows, startISO){
+  const rgbFc  = cssRGB("--c-rainfc");
+
+  const labels = rows.map(r=>r.report_date);
+  const rainFc  = rows.map(r => Number.isFinite(Number(r.rain_dubao)) ? Number(r.rain_dubao) : null);
+
+  $("metricName").textContent = tabMeta[currentTab].name;
+  $("chartHint").textContent  = `Mưa dự báo (rain_dubao) 7 ngày tới • từ ${startISO} → ${addDaysISO(startISO,6)}.`;
+
+  const opts = commonChartOptions();
+  opts.plugins.tooltip.callbacks.label = (ctx)=>{
+    const v = ctx.parsed.y;
+    const t = Number.isFinite(v)?fmt.format(v):"—";
+    return ` ${ctx.dataset.label}: ${t} mm`;
+  };
+
+  makeChart({
+    type:"line",
+    data:{
+      labels,
+      datasets:[
+        { label:"Mưa dự báo (mm)", data:rainFc, spanGaps:true, tension:.35, borderWidth:2,
+          borderColor: rgba(rgbFc,.92), backgroundColor: rgba(rgbFc,.14), pointRadius:3, pointHoverRadius:6, fill:true
+        }
+      ]
+    },
+    options: opts
+  });
+}
+
+async function renderChart(dayISO){
   const meta = tabMeta[currentTab];
   $("tabHint").textContent = meta.hint;
-  const rgb = cssRGB(meta.color);
 
   if(currentTab === "energy"){
-    return chartCompareH1H2(dayISO, h1, h2, "energy_kwh", "Sản lượng (kWh)", rgb);
+    const rows = await fetchUnitsRange(dayISO, 10);
+    return chartEnergy10D(dayISO, rows);
   }
   if(currentTab === "runtime"){
-    return chartCompareH1H2(dayISO, h1, h2, "t_run", "T chạy máy (h)", rgb);
+    const rows = await fetchUnitsRange(dayISO, 10);
+    return chartRuntime10D(dayISO, rows);
+  }
+
+  if(currentTab === "POWER_MIX"){
+    return chartPowerMix(dayISO);
   }
 
   if(currentTab === "H1_24" || currentTab === "H2_24" || currentTab === "A0_24"){
     await ensurePowerLoaded(dayISO);
     const rows = cache.powerRows || [];
-
     if(!rows.length){
       $("metricName").textContent = tabMeta[currentTab].name;
       $("chartHint").textContent = `Không có dữ liệu power_hourly cho ngày ${dayISO}.`;
       safeDestroyChart();
       return;
     }
-
+    const rgb = cssRGB(meta.color);
     if(currentTab === "H1_24") return chartPower24(dayISO, rows, "H1", "H1", rgb);
     if(currentTab === "H2_24") return chartPower24(dayISO, rows, "H2", "H2", rgb);
     if(currentTab === "A0_24") return chartPower24(dayISO, rows, "A0", "A0", rgb);
   }
 
+  if(currentTab === "RAIN_FC_7D"){
+    // D → D+6, coi D là ngày đang chọn
+    const rows = await fetchForecastRange(dayISO, 7);
+    if(!rows.length){
+      $("metricName").textContent = tabMeta[currentTab].name;
+      $("chartHint").textContent  = `Không có dữ liệu rain_dubao từ ${dayISO} → ${addDaysISO(dayISO,6)}.`;
+      safeDestroyChart();
+      return;
+    }
+    return chartRainForecast(rows, dayISO);
+  }
+
+  // các chart dạng range D-7 → D-1 dùng fetchRange()
   await ensureRangeLoaded(dayISO);
   const rows = cache.rangeRows || [];
-  if(currentTab === "MNH_7D"){
-    return chartMNH(rows);
-  }
-  if(currentTab === "Q_7D"){
-    return chartQ(rows);
-  }
+
+  if(currentTab === "MNH_7D")  return chartMNH(rows);
+  if(currentTab === "Q_7D")    return chartQ(rows);
+  if(currentTab === "RAIN_7D") return chartRainSync(rows, dayISO);
 }
 
 // ======================= LOAD + UI =======================
@@ -1185,7 +1468,9 @@ async function loadDay(){
     cache.day    = day;
     cache.units  = units;
 
-    cache.powerISO = null;
+    cache.rangeISO  = null;
+    cache.rangeRows = null;
+    cache.powerISO  = null;
     cache.powerRows = null;
 
     const h1 = getUnit(units,"H1");
@@ -1210,7 +1495,7 @@ async function loadDay(){
     }
     $("detailWrap").innerHTML = html;
 
-    await renderChart(dayISO, day, units);
+    await renderChart(dayISO);
     toast("Đã tải dữ liệu");
   }catch(e){
     console.error("loadDay error", e);
@@ -1258,9 +1543,10 @@ $("metricTabs").addEventListener("click", async (e)=>{
 
   const dayISO = $("day").value;
   if(!dayISO) return;
+
   try{
     if(cache.dayISO === dayISO){
-      await renderChart(dayISO, cache.day, cache.units || []);
+      await renderChart(dayISO);
     }else{
       await loadDay();
     }
