@@ -980,8 +980,8 @@ function renderPlantCard(u){
         ${metricBox("Lũy kế tháng (kWh)",    u.lk_thang_kwh, "u")}
         ${metricBox("Lũy kế năm (kWh)",      u.lk_nam_kwh, "u")}
         ${metricBox("Khởi động ngày",        u.start_today, "u")}
-        ${metricBox("Khởi động lũy tháng",   u.start_month, "u")}
-        ${metricBox("Khởi động lũy năm",     u.start_year, "u")}
+        ${metricBox("Khởi động lũy kế tháng",   u.start_month, "u")}
+        ${metricBox("Khởi động lũy kế năm",     u.start_year, "u")}
       </div>
     </div>
   `;
@@ -1571,4 +1571,5 @@ $("metricTabs").addEventListener("click", async (e)=>{
   </script>
 </body>
 </html>
+
 
