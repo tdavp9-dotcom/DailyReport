@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#050816" />
   <meta name="description" content="Dashboard báo cáo sản xuất ngày - PWA 4 tab: Tổng quan, Biểu đồ, H1, H2." />
 
-  <title>Dashboard báo cáo sản xuất ngày • V3.5</title>
+  <title>Dashboard báo cáo sản xuất ngày • V3.6</title>
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json" />
@@ -698,8 +698,42 @@
     
 
     @media (max-width:430px){
-      .grid3{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .grid3 > .kpi:nth-child(3){grid-column:1/-1}
+      /* Giữ bố cục KPI giống bản HTML: nhóm grid3 luôn 3 cột trên PWA */
+      .grid3{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+        gap:6px;
+      }
+      .grid3 > .kpi:nth-child(3){
+        grid-column:auto;
+      }
+
+      /* Thu gọn KPI để 3 cột vẫn đọc tốt trên iPhone */
+      .kpi{
+        padding:8px 7px;
+        min-height:70px;
+        border-radius:15px;
+      }
+      .kpi .label{
+        font-size:10.2px;
+        line-height:1.18;
+      }
+      .kpi .label:before{
+        width:6px;
+        height:6px;
+        margin-right:5px;
+        box-shadow:0 0 0 3px rgba(var(--g-rgb),.10);
+      }
+      .kpi .value{
+        margin-top:5px;
+        font-size:15px;
+        line-height:1.12;
+      }
+      .kpi .sub{
+        margin-top:3px;
+        font-size:9.6px;
+        line-height:1.25;
+      }
+
       .titleRow{align-items:flex-start}
       h1{font-size:15.5px}
       .subtitle{font-size:10.8px}
@@ -708,9 +742,44 @@
 
     @media (max-width:350px){
       .grid2,.metrics{grid-template-columns:1fr}
-      .grid3{grid-template-columns:1fr}
+      .grid3{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+        gap:4px;
+      }
       .grid3 > .kpi:nth-child(3){grid-column:auto}
+      .kpi{
+        padding:6px 5px;
+        min-height:64px;
+      }
+      .kpi .label{font-size:9.2px}
+      .kpi .value{font-size:13.2px}
+      .kpi .sub{font-size:8.8px}
     }
+  
+    /* ===== v3.6: giữ bố cục Tổng quan nhất quán giữa HTML và PWA ===== */
+    @media (max-width:430px){
+      #panel-overview .cardBody{
+        padding-left:9px;
+        padding-right:9px;
+      }
+      #panel-overview .grid2{
+        gap:6px;
+      }
+      #panel-overview .grid3{
+        gap:6px;
+      }
+
+      /* Các nhóm 3 KPI dùng cùng chiều cao để nhìn thẳng hàng */
+      #panel-overview .grid3 .kpi{
+        height:100%;
+      }
+
+      /* Giảm chữ các KPI có tiêu đề dài nhưng không đổi dữ liệu */
+      #slA0, #slQC, #slKeHoach{
+        font-size:14.2px;
+      }
+    }
+
   </style>
 </head>
 
@@ -722,7 +791,7 @@
           <h1>📊 Dashboard báo cáo sản xuất ngày</h1>
           <div class="subtitle">PWA 4 tab • Tổng quan • Biểu đồ • H1 • H2</div>
         </div>
-        <span class="chip version">v3.5</span>
+        <span class="chip version">v3.6</span>
       </div>
       <div class="statusLine">
         <span class="chip"><span id="dot" class="dot"></span><span id="connText">Đang kiểm tra…</span></span>
