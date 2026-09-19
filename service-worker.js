@@ -1,60 +1,64 @@
-const CACHE_NAME = "static-v2";
-const ASSETS = [
-  "/", 
-  "/index.html",
-  "/manifest.json",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png"
+const CACHE_NAME = "bao-cao-sx-v3.5.0";
+const APP_SHELL = [
+  "./index.html",
+  "./manifest.json",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png"
 ];
 
-// 1) Install → cache file tĩnh
-self.addEventListener("install", (event) => {
+self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-// 2) Activate → xóa cache cũ
-self.addEventListener("activate", (event) => {
+self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key))
-      )
-    )
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
-  clients.claim();
 });
 
-// 3) Fetch → chỉ cache GET request, KHÔNG cache Supabase
-self.addEventListener("fetch", (event) => {
+self.addEventListener("fetch", event => {
   const req = event.request;
+  if (req.method !== "GET") return;
 
-  // Không cache API Supabase (tránh lỗi import)
-  if (req.url.includes("supabase.co")) {
-    return event.respondWith(fetch(req));
+  const url = new URL(req.url);
+
+  // Dữ liệu Supabase phải ưu tiên dữ liệu mới, không cache bằng service worker.
+  if (url.hostname.endsWith("supabase.co")) return;
+
+  // Navigation: Network First, fallback về app shell khi mất mạng.
+  if (req.mode === "navigate") {
+    event.respondWith(
+      fetch(req)
+        .then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put("./index.html", copy));
+          return res;
+        })
+        .catch(() => caches.match("./index.html"))
+    );
+    return;
   }
 
-  // Chỉ cache GET
-  if (req.method !== "GET") {
-    return event.respondWith(fetch(req));
-  }
-
+  // Tài nguyên tĩnh: Stale While Revalidate.
   event.respondWith(
-    caches.match(req).then((cacheRes) => {
-      return (
-        cacheRes ||
-        fetch(req)
-          .then((networkRes) => {
-            return caches.open(CACHE_NAME).then((cache) => {
-              cache.put(req, networkRes.clone());
-              return networkRes;
-            });
-          })
-          .catch(() => cacheRes)
-      );
+    caches.match(req).then(cached => {
+      const network = fetch(req)
+        .then(res => {
+          if (res && (res.ok || res.type === "opaque")) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => cached);
+
+      return cached || network;
     })
   );
 });
